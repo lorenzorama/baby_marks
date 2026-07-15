@@ -1,0 +1,18 @@
+{
+  "nav": { "home": "Home", "history": "History", "stats": "Stats", "settings": "Settings" },
+  "login": { "title": "Baby Marks", "placeholder": "Secret phrase", "submit": "Enter", "error": "Wrong phrase" },
+  "onboarding": { "title": "Welcome!", "text": "Start by creating your baby's profile.", "cta": "Create profile" },
+  "actions": { "nursingLeft": "Left breast", "nursingRight": "Right breast", "bottle": "Bottle", "sleep": "Sleep", "diaper": "Diaper", "pump": "Pump", "medicine": "Medicine", "solids": "Solids" },
+  "timer": { "stop": "Stop", "feed": "Nursing", "sleep": "Sleep", "pump": "Pumping", "alreadyRunning": "A timer is already running for this activity" },
+  "timeSince": { "lastFeed": "Last feed", "lastSleep": "Last sleep", "lastDiaper": "Last diaper", "never": "—", "ago": "{duration} ago" },
+  "timeline": { "today": "Today", "empty": "Nothing yet" },
+  "sheets": { "save": "Save", "cancel": "Cancel", "amountMl": "Amount (ml)", "food": "Food", "medName": "Name", "medDose": "Dose (optional)" },
+  "diaper": { "wet": "Wet", "dirty": "Dirty", "both": "Both" },
+  "summary": { "breastLeft": "Left breast", "breastRight": "Right breast", "breast": "Breast", "bottle": "Bottle {ml} ml", "solids": "Solids · {food}", "sleep": "Sleep", "diaperWet": "Diaper · wet", "diaperDirty": "Diaper · dirty", "diaperBoth": "Diaper · wet + dirty", "pump": "Pump {ml} ml", "medicine": "Medicine · {name}", "running": "running" },
+  "history": { "title": "History", "all": "All", "empty": "No events", "loadMore": "Load more" },
+  "edit": { "title": "Edit", "start": "Start", "end": "End", "running": "Running (no end)", "note": "Note", "caregiver": "Who?", "save": "Save", "delete": "Delete", "confirmDelete": "Delete this event?" },
+  "caregiver": { "maman": "Mom", "papa": "Dad" },
+  "stats": { "title": "Stats", "sleepPerDay": "Sleep (h / day)", "feedsPerDay": "Feeds / day", "bottleMlPerDay": "Bottles (ml / day)", "diapersPerDay": "Diapers / day", "pumpMlPerDay": "Pump (ml / day)", "growth": "Growth", "weight": "Weight (kg)", "height": "Height (cm)", "needTwoPoints": "Add at least two measurements to see the curve.", "addMeasurement": "Add measurement", "date": "Date", "weightKg": "Weight (kg)", "heightCm": "Height (cm)", "headCm": "Head circumference (cm)", "save": "Save" },
+  "settings": { "title": "Settings", "babySection": "Baby", "name": "Name", "birthDate": "Birth date", "save": "Save", "saved": "Saved!", "caregiverSection": "I am…", "languageSection": "Language", "logout": "Log out" },
+  "common": { "error": "Something went wrong" }
+}

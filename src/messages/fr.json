@@ -1,0 +1,18 @@
+{
+  "nav": { "home": "Accueil", "history": "Historique", "stats": "Stats", "settings": "Réglages" },
+  "login": { "title": "Baby Marks", "placeholder": "Phrase secrète", "submit": "Entrer", "error": "Phrase incorrecte" },
+  "onboarding": { "title": "Bienvenue !", "text": "Commencez par créer le profil de votre bébé.", "cta": "Créer le profil" },
+  "actions": { "nursingLeft": "Sein G", "nursingRight": "Sein D", "bottle": "Biberon", "sleep": "Dodo", "diaper": "Couche", "pump": "Tire-lait", "medicine": "Médoc", "solids": "Solides" },
+  "timer": { "stop": "Stop", "feed": "Tétée", "sleep": "Dodo", "pump": "Tire-lait", "alreadyRunning": "Un minuteur est déjà en cours pour cette activité" },
+  "timeSince": { "lastFeed": "Dernier repas", "lastSleep": "Dernier dodo", "lastDiaper": "Dernière couche", "never": "—", "ago": "il y a {duration}" },
+  "timeline": { "today": "Aujourd'hui", "empty": "Rien pour l'instant" },
+  "sheets": { "save": "Enregistrer", "cancel": "Annuler", "amountMl": "Quantité (ml)", "food": "Aliment", "medName": "Nom", "medDose": "Dose (optionnel)" },
+  "diaper": { "wet": "Pipi", "dirty": "Caca", "both": "Les deux" },
+  "summary": { "breastLeft": "Sein gauche", "breastRight": "Sein droit", "breast": "Sein", "bottle": "Biberon {ml} ml", "solids": "Solides · {food}", "sleep": "Dodo", "diaperWet": "Couche · pipi", "diaperDirty": "Couche · caca", "diaperBoth": "Couche · pipi + caca", "pump": "Tire-lait {ml} ml", "medicine": "Médicament · {name}", "running": "en cours" },
+  "history": { "title": "Historique", "all": "Tout", "empty": "Aucun événement", "loadMore": "Charger plus" },
+  "edit": { "title": "Modifier", "start": "Début", "end": "Fin", "running": "En cours (pas de fin)", "note": "Note", "caregiver": "Qui ?", "save": "Enregistrer", "delete": "Supprimer", "confirmDelete": "Supprimer cet événement ?" },
+  "caregiver": { "maman": "Maman", "papa": "Papa" },
+  "stats": { "title": "Stats", "sleepPerDay": "Sommeil (h / jour)", "feedsPerDay": "Repas / jour", "bottleMlPerDay": "Biberons (ml / jour)", "diapersPerDay": "Couches / jour", "pumpMlPerDay": "Tire-lait (ml / jour)", "growth": "Croissance", "weight": "Poids (kg)", "height": "Taille (cm)", "needTwoPoints": "Ajoutez au moins deux mesures pour voir la courbe.", "addMeasurement": "Ajouter une mesure", "date": "Date", "weightKg": "Poids (kg)", "heightCm": "Taille (cm)", "headCm": "Périmètre crânien (cm)", "save": "Enregistrer" },
+  "settings": { "title": "Réglages", "babySection": "Bébé", "name": "Prénom", "birthDate": "Date de naissance", "save": "Enregistrer", "saved": "Enregistré !", "caregiverSection": "Je suis…", "languageSection": "Langue", "logout": "Se déconnecter" },
+  "common": { "error": "Une erreur est survenue" }
+}
