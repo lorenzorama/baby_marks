@@ -13,7 +13,9 @@ export const babies = pgTable("babies", {
   name: text("name").notNull(),
   birthDate: date("birth_date").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, () => [
+  uniqueIndex("babies_singleton").on(sql`(true)`),
+]);
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "babies_singleton" ON "babies" USING btree ((true));

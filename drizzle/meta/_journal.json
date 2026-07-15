@@ -15,6 +15,13 @@
       "when": 1784125555672,
       "tag": "0001_one_running_per_type",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784130597848,
+      "tag": "0002_babies_singleton",
+      "breakpoints": true
     }
   ]
 }
