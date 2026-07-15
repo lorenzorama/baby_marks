@@ -11,10 +11,17 @@ export async function computeAuthToken(secret: string): Promise<string> {
 
 type CookieReader = { cookies: { get(name: string): { value: string } | undefined } };
 
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export async function isAuthed(req: CookieReader): Promise<boolean> {
   const secret = process.env.APP_SECRET_PHRASE;
   if (!secret) return false;
   const cookie = req.cookies.get(COOKIE_NAME)?.value;
   if (!cookie) return false;
-  return cookie === (await computeAuthToken(secret));
+  return timingSafeEqual(cookie, await computeAuthToken(secret));
 }

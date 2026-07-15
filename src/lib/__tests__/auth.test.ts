@@ -23,4 +23,18 @@ describe("auth", () => {
     expect(await isAuthed(fakeReq("wrong"))).toBe(false);
     expect(await isAuthed(fakeReq())).toBe(false);
   });
+
+  it("isAuthed false for cookie with different length", async () => {
+    const token = await computeAuthToken(process.env.APP_SECRET_PHRASE!);
+    expect(await isAuthed(fakeReq(token.slice(0, -1)))).toBe(false);
+    expect(await isAuthed(fakeReq(token + "a"))).toBe(false);
+  });
+
+  it("isAuthed false for same-length wrong cookie", async () => {
+    const token = await computeAuthToken(process.env.APP_SECRET_PHRASE!);
+    const wrongToken = token.slice(0, -1) + (token[token.length - 1] === "a" ? "b" : "a");
+    expect(wrongToken).toHaveLength(token.length);
+    expect(wrongToken).not.toBe(token);
+    expect(await isAuthed(fakeReq(wrongToken))).toBe(false);
+  });
 });
