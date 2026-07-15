@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { events } from "@/db/schema";
 import { isAuthed } from "@/lib/auth";
-import { detailsByType, patchEventSchema } from "@/lib/validation";
+import { detailsByType, patchEventSchema, TIMER_TYPES } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -41,6 +41,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   if (merged.endedAt && merged.endedAt.getTime() < merged.startedAt.getTime()) {
     return NextResponse.json({ error: "invalid", message: "endedAt before startedAt" }, { status: 400 });
+  }
+
+  if (merged.endedAt === null && TIMER_TYPES.includes(existing.type)) {
+    const [running] = await db.select().from(events)
+      .where(and(eq(events.type, existing.type), isNull(events.endedAt), ne(events.id, eventId)));
+    if (running) {
+      return NextResponse.json({ error: "timer_running", event: running }, { status: 409 });
+    }
   }
 
   const [row] = await db.update(events)

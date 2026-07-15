@@ -101,4 +101,39 @@ describe("events API", () => {
     expect(json.events).toHaveLength(1);
     expect(json.events[0].type).toBe("diaper");
   });
+
+  it("409s when PATCH would restart a timer while another of the same type is running", async () => {
+    await seedBaby();
+    const completed = await POST(await post({
+      type: "sleep", startedAt: "2026-07-15T01:00:00Z", endedAt: "2026-07-15T01:30:00Z",
+      details: {}, caregiver: "maman",
+    }));
+    const { event: completedEvent } = await completed.json();
+
+    await POST(await post({
+      type: "sleep", startedAt: "2026-07-15T02:00:00Z", endedAt: null,
+      details: {}, caregiver: "papa",
+    }));
+
+    const res = await PATCH(await authedRequest(`/api/events/${completedEvent.id}`, {
+      method: "PATCH", body: JSON.stringify({ endedAt: null }),
+    }), ctx(completedEvent.id));
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error).toBe("timer_running");
+  });
+
+  it("400s on GET with an invalid from date", async () => {
+    await seedBaby();
+    const res = await GET(await authedRequest("/api/events?from=garbage"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("invalid");
+  });
+
+  it("400s on GET with an invalid type", async () => {
+    await seedBaby();
+    const res = await GET(await authedRequest("/api/events?type=bogus"));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("invalid");
+  });
 });

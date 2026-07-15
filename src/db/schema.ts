@@ -1,6 +1,7 @@
 import {
-  pgTable, pgEnum, serial, text, date, timestamp, integer, jsonb,
+  pgTable, pgEnum, serial, text, date, timestamp, integer, jsonb, uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const eventTypeEnum = pgEnum("event_type", [
   "feed", "sleep", "diaper", "pump", "medicine",
@@ -25,7 +26,9 @@ export const events = pgTable("events", {
   caregiver: caregiverEnum("caregiver").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("events_one_running_per_type").on(table.type).where(sql`ended_at IS NULL`),
+]);
 
 export const measurements = pgTable("measurements", {
   id: serial("id").primaryKey(),
