@@ -12,6 +12,7 @@ import { useBaby } from "@/hooks/useBaby";
 export default function HomePage() {
   const t = useTranslations();
   const summaryT = useTranslations("summary");
+  const tCg = useTranslations("caregiver");
   const locale = useLocale();
   const { data: baby, isLoading: babyLoading } = useBaby();
   const { data } = useRecentEvents();
@@ -47,7 +48,8 @@ export default function HomePage() {
           <div className="space-y-1.5">
             {today.map((e) => (
               <EventItem key={e.id} event={e} locale={locale} summaryT={summaryT}
-                runningLabel={summaryT("running")} />
+                runningLabel={summaryT("running")}
+                caregiverLabels={{ maman: tCg("initialMaman"), papa: tCg("initialPapa") }} />
             ))}
           </div>
         )}

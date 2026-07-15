@@ -11,7 +11,8 @@
   "summary": { "breastLeft": "Left breast", "breastRight": "Right breast", "breast": "Breast", "bottle": "Bottle {ml} ml", "solids": "Solids · {food}", "sleep": "Sleep", "diaperWet": "Diaper · wet", "diaperDirty": "Diaper · dirty", "diaperBoth": "Diaper · wet + dirty", "pump": "Pump {ml} ml", "medicine": "Medicine · {name}", "running": "running" },
   "history": { "title": "History", "all": "All", "empty": "No events", "loadMore": "Load more" },
   "edit": { "title": "Edit", "start": "Start", "end": "End", "running": "Running (no end)", "note": "Note", "caregiver": "Who?", "save": "Save", "delete": "Delete", "confirmDelete": "Delete this event?" },
-  "caregiver": { "maman": "Mom", "papa": "Dad" },
+  "caregiver": { "maman": "Mom", "papa": "Dad", "initialMaman": "M", "initialPapa": "D" },
+  "side": { "left": "L", "right": "R" },
   "stats": { "title": "Stats", "sleepPerDay": "Sleep (h / day)", "feedsPerDay": "Feeds / day", "bottleMlPerDay": "Bottles (ml / day)", "diapersPerDay": "Diapers / day", "pumpMlPerDay": "Pump (ml / day)", "growth": "Growth", "weight": "Weight (kg)", "height": "Height (cm)", "needTwoPoints": "Add at least two measurements to see the curve.", "addMeasurement": "Add measurement", "date": "Date", "weightKg": "Weight (kg)", "heightCm": "Height (cm)", "headCm": "Head circumference (cm)", "save": "Save" },
   "settings": { "title": "Settings", "babySection": "Baby", "name": "Name", "birthDate": "Birth date", "save": "Save", "saved": "Saved!", "caregiverSection": "I am…", "languageSection": "Language", "logout": "Log out" },
   "common": { "error": "Something went wrong" }

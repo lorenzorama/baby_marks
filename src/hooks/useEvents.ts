@@ -32,10 +32,14 @@ export function useCreateEvent(onApiError?: (err: unknown) => void) {
           details: input.details ?? {}, note: input.note ?? null,
           caregiver: input.caregiver,
         };
-        qc.setQueryData<RecentData>(RECENT_KEY, {
-          events: [temp, ...prev.events],
-          running: temp.endedAt === null ? [temp, ...prev.running] : prev.running,
-        });
+        const wouldDuplicateRunning =
+          temp.endedAt === null && prev.running.some((e) => e.type === temp.type);
+        if (!wouldDuplicateRunning) {
+          qc.setQueryData<RecentData>(RECENT_KEY, {
+            events: [temp, ...prev.events],
+            running: temp.endedAt === null ? [temp, ...prev.running] : prev.running,
+          });
+        }
       }
       return { prev };
     },

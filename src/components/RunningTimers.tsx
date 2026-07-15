@@ -10,6 +10,7 @@ const icons: Record<string, string> = { feed: "🍼", sleep: "😴", pump: "🥛
 
 export default function RunningTimers({ running }: { running: ApiEvent[] }) {
   const t = useTranslations("timer");
+  const ts = useTranslations("side");
   const now = useNow(1000);
   const update = useUpdateEvent();
   if (running.length === 0) return null;
@@ -24,7 +25,7 @@ export default function RunningTimers({ running }: { running: ApiEvent[] }) {
             <span className="text-2xl">{icons[e.type] ?? "⏱"}</span>
             <div className="flex-1">
               <div className="text-sm font-medium">
-                {label}{side ? ` · ${side === "left" ? "G" : "D"}` : ""}
+                {label}{side ? ` · ${ts(side)}` : ""}
               </div>
               <div className="font-mono text-2xl tabular-nums">{formatClock(secs)}</div>
             </div>

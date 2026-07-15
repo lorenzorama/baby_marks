@@ -11,7 +11,8 @@
   "summary": { "breastLeft": "Sein gauche", "breastRight": "Sein droit", "breast": "Sein", "bottle": "Biberon {ml} ml", "solids": "Solides · {food}", "sleep": "Dodo", "diaperWet": "Couche · pipi", "diaperDirty": "Couche · caca", "diaperBoth": "Couche · pipi + caca", "pump": "Tire-lait {ml} ml", "medicine": "Médicament · {name}", "running": "en cours" },
   "history": { "title": "Historique", "all": "Tout", "empty": "Aucun événement", "loadMore": "Charger plus" },
   "edit": { "title": "Modifier", "start": "Début", "end": "Fin", "running": "En cours (pas de fin)", "note": "Note", "caregiver": "Qui ?", "save": "Enregistrer", "delete": "Supprimer", "confirmDelete": "Supprimer cet événement ?" },
-  "caregiver": { "maman": "Maman", "papa": "Papa" },
+  "caregiver": { "maman": "Maman", "papa": "Papa", "initialMaman": "M", "initialPapa": "P" },
+  "side": { "left": "G", "right": "D" },
   "stats": { "title": "Stats", "sleepPerDay": "Sommeil (h / jour)", "feedsPerDay": "Repas / jour", "bottleMlPerDay": "Biberons (ml / jour)", "diapersPerDay": "Couches / jour", "pumpMlPerDay": "Tire-lait (ml / jour)", "growth": "Croissance", "weight": "Poids (kg)", "height": "Taille (cm)", "needTwoPoints": "Ajoutez au moins deux mesures pour voir la courbe.", "addMeasurement": "Ajouter une mesure", "date": "Date", "weightKg": "Poids (kg)", "heightCm": "Taille (cm)", "headCm": "Périmètre crânien (cm)", "save": "Enregistrer" },
   "settings": { "title": "Réglages", "babySection": "Bébé", "name": "Prénom", "birthDate": "Date de naissance", "save": "Enregistrer", "saved": "Enregistré !", "caregiverSection": "Je suis…", "languageSection": "Langue", "logout": "Se déconnecter" },
   "common": { "error": "Une erreur est survenue" }

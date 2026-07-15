@@ -39,12 +39,13 @@ export function durationOf(e: ApiEvent): number | null {
 }
 
 export default function EventItem({
-  event, locale, summaryT, runningLabel, onClick,
+  event, locale, summaryT, runningLabel, caregiverLabels, onClick,
 }: {
   event: ApiEvent;
   locale: string;
   summaryT: Tsum;
   runningLabel: string;
+  caregiverLabels: { maman: string; papa: string };
   onClick?: () => void;
 }) {
   const dur = durationOf(event);
@@ -62,7 +63,7 @@ export default function EventItem({
           {dur !== null && ` · ${formatDuration(dur)}`}
         </span>
       </span>
-      <span className="text-xs text-zinc-600">{event.caregiver === "maman" ? "M" : "P"}</span>
+      <span className="text-xs text-zinc-600">{caregiverLabels[event.caregiver]}</span>
     </button>
   );
 }
