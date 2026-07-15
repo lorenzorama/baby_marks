@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { isNull, eq, and } from "drizzle-orm";
 import { GET, POST } from "@/app/api/events/route";
 import { PATCH, DELETE } from "@/app/api/events/[id]/route";
 import { resetDb, seedBaby, authedRequest, unauthedRequest } from "@/test/helpers";
+import { getDb } from "@/db";
+import { events } from "@/db/schema";
 
 const ctx = (id: number | string) => ({ params: Promise.resolve({ id: String(id) }) });
 
@@ -55,6 +58,69 @@ describe("events API", () => {
     const json = await dup.json();
     expect(json.error).toBe("timer_running");
     expect(json.event.type).toBe("sleep");
+  });
+
+  it("enforces one running timer per type at the DB level via a partial unique index", async () => {
+    const baby = await seedBaby();
+    const db = await getDb();
+    const started = new Date("2026-07-15T03:00:00Z");
+
+    await db.insert(events).values({
+      babyId: baby.id, type: "sleep", startedAt: started, endedAt: null,
+      details: {}, caregiver: "maman",
+    });
+
+    let caught: unknown;
+    try {
+      await db.insert(events).values({
+        babyId: baby.id, type: "sleep", startedAt: started, endedAt: null,
+        details: {}, caregiver: "papa",
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeDefined();
+    // drizzle-orm's pg-core session wraps the driver error in a DrizzleQueryError whose own
+    // `.code` is undefined for both the `pg` driver and PGlite (both extend the same
+    // pg-core session); the real Postgres/PGlite unique-violation code lives on `.cause.code`.
+    const code = (caught as { code?: string } | undefined)?.code
+      ?? ((caught as { cause?: { code?: string } } | undefined)?.cause)?.code;
+    if (code !== undefined) {
+      expect(code).toBe("23505");
+    } else {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      expect(message).toContain("events_one_running_per_type");
+    }
+
+    // The index is partial (WHERE ended_at IS NULL), so a completed event of the same type
+    // still inserts fine even while a running one exists.
+    const [completed] = await db.insert(events).values({
+      babyId: baby.id, type: "sleep", startedAt: started, endedAt: new Date("2026-07-15T03:30:00Z"),
+      details: {}, caregiver: "papa",
+    }).returning();
+    expect(completed.endedAt).not.toBeNull();
+
+    const running = await db.select().from(events)
+      .where(and(eq(events.type, "sleep"), isNull(events.endedAt)));
+    expect(running).toHaveLength(1);
+  });
+
+  it("under a concurrent race, exactly one of two simultaneous POSTs for the same timer type succeeds", async () => {
+    await seedBaby();
+    const body = {
+      type: "feed", startedAt: new Date().toISOString(), endedAt: null,
+      details: { method: "breast", side: "left" }, caregiver: "maman",
+    };
+    const [resA, resB] = await Promise.all([
+      POST(await post(body)),
+      POST(await post(body)),
+    ]);
+    const statuses = [resA.status, resB.status].sort();
+    expect(statuses).toEqual([201, 409]);
+
+    const conflict = resA.status === 409 ? resA : resB;
+    const conflictJson = await conflict.json();
+    expect(conflictJson.error).toBe("timer_running");
   });
 
   it("stops a timer via PATCH and validates details on PATCH", async () => {

@@ -90,9 +90,19 @@ export async function POST(req: NextRequest) {
     }).returning();
     return NextResponse.json({ event: row }, { status: 201 });
   } catch (err) {
-    const code = (err as { code?: string })?.code;
+    // drizzle-orm's pg-core session wraps driver errors in a DrizzleQueryError whose own
+    // `.code` is undefined; the driver's original error (with `.code === "23505"` for a
+    // Postgres/PGlite unique violation) lives on `.cause`. Check both shapes so this works
+    // whether the raw driver error or the drizzle wrapper is what's caught.
+    const cause = (err as { cause?: unknown })?.cause;
+    const code = (err as { code?: string })?.code ?? (cause as { code?: string } | undefined)?.code;
     const message = err instanceof Error ? err.message : String(err);
-    if (code === "23505" || message.includes("events_one_running_per_type")) {
+    const causeMessage = cause instanceof Error ? cause.message : "";
+    if (
+      code === "23505" ||
+      message.includes("events_one_running_per_type") ||
+      causeMessage.includes("events_one_running_per_type")
+    ) {
       const [running] = await db.select().from(events)
         .where(and(eq(events.type, data.type), isNull(events.endedAt)));
       return NextResponse.json({ error: "timer_running", event: running }, { status: 409 });
