@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDuration, formatClock, toLocalInput, fromLocalInput } from "@/lib/format";
+import { formatDuration, formatClock, toLocalInput, fromLocalInput, formatTime } from "@/lib/format";
 
 describe("format", () => {
   it("formatDuration", () => {
@@ -19,5 +19,11 @@ describe("format", () => {
     const d = new Date(2026, 6, 15, 14, 5); // local time
     expect(toLocalInput(d)).toBe("2026-07-15T14:05");
     expect(fromLocalInput("2026-07-15T14:05").getTime()).toBe(d.getTime());
+  });
+
+  it("formatTime", () => {
+    const iso = new Date(2026, 6, 15, 14, 5).toISOString(); // local 14:05
+    expect(formatTime(iso, "fr")).toBe("14:05");
+    expect(formatTime(iso, "en")).toBe("14:05");
   });
 });

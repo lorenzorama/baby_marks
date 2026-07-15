@@ -27,6 +27,7 @@ export function useDeleteMeasurement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.delete<{ ok: true }>(`/api/measurements/${id}`),
+    onError: (err) => toast(err instanceof Error ? err.message : "error"),
     onSettled: () => qc.invalidateQueries({ queryKey: ["measurements"] }),
   });
 }

@@ -60,10 +60,16 @@ export function useUpdateEvent() {
       await qc.cancelQueries({ queryKey: RECENT_KEY });
       const prev = qc.getQueryData<RecentData>(RECENT_KEY);
       if (prev) {
-        const apply = (e: ApiEvent) => (e.id === id ? { ...e, ...patch } as ApiEvent : e);
+        const apply = (e: ApiEvent) => (e.id === id ? ({ ...e, ...patch } as ApiEvent) : e);
+        const updatedEvents = prev.events.map(apply);
+        const updatedRunning = prev.running.map(apply);
+        const runningById = new Map<number, ApiEvent>();
+        for (const e of [...updatedRunning, ...updatedEvents]) {
+          if (e.endedAt === null) runningById.set(e.id, e);
+        }
         qc.setQueryData<RecentData>(RECENT_KEY, {
-          events: prev.events.map(apply),
-          running: prev.running.map(apply).filter((e) => e.endedAt === null),
+          events: updatedEvents,
+          running: [...runningById.values()],
         });
       }
       return { prev };
@@ -83,6 +89,7 @@ export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.delete<{ ok: true }>(`/api/events/${id}`),
+    onError: (err) => toast(err instanceof Error ? err.message : "error"),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
