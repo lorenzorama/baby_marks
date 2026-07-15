@@ -2,27 +2,31 @@
 
 import { useEffect, useState } from "react";
 
-let listener: ((msg: string) => void) | null = null;
+type ToastVariant = "error" | "success";
+type ToastState = { msg: string; variant: ToastVariant };
 
-export function toast(msg: string) {
-  listener?.(msg);
+let listener: ((toast: ToastState) => void) | null = null;
+
+export function toast(msg: string, variant: ToastVariant = "error") {
+  listener?.({ msg, variant });
 }
 
 export function Toaster() {
-  const [msg, setMsg] = useState<string | null>(null);
+  const [toastState, setToastState] = useState<ToastState | null>(null);
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
-    listener = (m) => {
-      setMsg(m);
+    listener = (t) => {
+      setToastState(t);
       clearTimeout(timeout);
-      timeout = setTimeout(() => setMsg(null), 3000);
+      timeout = setTimeout(() => setToastState(null), 3000);
     };
     return () => { listener = null; };
   }, []);
-  if (!msg) return null;
+  if (!toastState) return null;
+  const bg = toastState.variant === "success" ? "bg-emerald-600" : "bg-red-600";
   return (
-    <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-lg">
-      {msg}
+    <div className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl ${bg} px-4 py-2 text-sm font-medium text-white shadow-lg`}>
+      {toastState.msg}
     </div>
   );
 }

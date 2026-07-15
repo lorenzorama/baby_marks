@@ -9,13 +9,13 @@ export async function GET(req: NextRequest) {
   if (!(await isAuthed(req))) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const sp = req.nextUrl.searchParams;
   const days = Math.min(Math.max(Number(sp.get("days")) || 7, 1), 90);
-  const tzOffset = Number(sp.get("tzOffset")) || 0;
+  const tzOffset = Math.min(Math.max(Number(sp.get("tzOffset")) || 0, -840), 840);
 
   const db = await getDb();
   const now = new Date();
   const from = new Date(now.getTime() - (days + 1) * 86_400_000);
   const rows = await db.select().from(events)
-    .where(or(gte(events.startedAt, from), isNull(events.endedAt)));
+    .where(or(gte(events.startedAt, from), gte(events.endedAt, from), isNull(events.endedAt)));
 
   return NextResponse.json({
     days: aggregateDaily(

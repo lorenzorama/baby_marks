@@ -15,17 +15,22 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setError(false);
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret }),
-    });
-    setBusy(false);
-    if (res.ok) {
-      router.push("/");
-      router.refresh();
-    } else {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret }),
+      });
+      if (res.ok) {
+        router.push("/");
+        router.refresh();
+      } else {
+        setError(true);
+      }
+    } catch {
       setError(true);
+    } finally {
+      setBusy(false);
     }
   }
 

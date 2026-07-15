@@ -13,12 +13,12 @@ export default function TimeSinceCards({ events }: { events: ApiEvent[] }) {
   const t = useTranslations("timeSince");
   const now = useNow(30_000);
 
-  const lastFeed = events.find((e) => e.type === "feed");
+  const lastFeed = events.find((e) => e.type === "feed" && e.endedAt !== null);
   const lastSleep = events.find((e) => e.type === "sleep" && e.endedAt !== null);
   const lastDiaper = events.find((e) => e.type === "diaper");
 
   const cards = [
-    { label: t("lastFeed"), ref: lastFeed ? (lastFeed.endedAt ?? lastFeed.startedAt) : null },
+    { label: t("lastFeed"), ref: lastFeed ? lastFeed.endedAt : null },
     { label: t("lastSleep"), ref: lastSleep ? lastSleep.endedAt : null },
     { label: t("lastDiaper"), ref: lastDiaper ? lastDiaper.startedAt : null },
   ];

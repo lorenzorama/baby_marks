@@ -189,6 +189,48 @@ describe("events API", () => {
     expect(json.error).toBe("timer_running");
   });
 
+  it("400s on PATCH clearing endedAt for a point-type (diaper) event", async () => {
+    await seedBaby();
+    const created = await POST(await post({
+      type: "diaper", startedAt: "2026-07-15T02:00:00Z", endedAt: "2026-07-15T02:00:00Z",
+      details: { kind: "wet" }, caregiver: "maman",
+    }));
+    const { event } = await created.json();
+
+    const res = await PATCH(await authedRequest(`/api/events/${event.id}`, {
+      method: "PATCH", body: JSON.stringify({ endedAt: null }),
+    }), ctx(event.id));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("invalid");
+    expect(json.message).toBe("point events require endedAt");
+  });
+
+  it("under a concurrent race, exactly one of two simultaneous PATCHes clearing endedAt for the same type succeeds", async () => {
+    await seedBaby();
+    const a = await (await POST(await post({
+      type: "sleep", startedAt: "2026-07-15T01:00:00Z", endedAt: "2026-07-15T01:30:00Z",
+      details: {}, caregiver: "maman",
+    }))).json();
+    const b = await (await POST(await post({
+      type: "sleep", startedAt: "2026-07-15T02:00:00Z", endedAt: "2026-07-15T02:30:00Z",
+      details: {}, caregiver: "papa",
+    }))).json();
+
+    const patch = async (id: number) =>
+      PATCH(
+        await authedRequest(`/api/events/${id}`, { method: "PATCH", body: JSON.stringify({ endedAt: null }) }),
+        ctx(id),
+      );
+    const [resA, resB] = await Promise.all([patch(a.event.id), patch(b.event.id)]);
+    const statuses = [resA.status, resB.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const conflict = resA.status === 409 ? resA : resB;
+    const conflictJson = await conflict.json();
+    expect(conflictJson.error).toBe("timer_running");
+  });
+
   it("400s on GET with an invalid from date", async () => {
     await seedBaby();
     const res = await GET(await authedRequest("/api/events?from=garbage"));

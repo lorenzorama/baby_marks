@@ -5,7 +5,15 @@ export async function POST(req: NextRequest) {
   const secret = process.env.APP_SECRET_PHRASE;
   if (!secret) return NextResponse.json({ error: "server_not_configured" }, { status: 500 });
   const body = await req.json().catch(() => null);
-  if (!body || typeof body.secret !== "string" || body.secret !== secret) {
+  // Compare HMAC-SHA256 digests of the submitted and configured secrets rather than the raw
+  // strings: computeAuthToken always yields fixed-length hex digests, so a plain !== here can't
+  // leak the secret's length or short-circuit character-by-character the way comparing the raw
+  // secrets would, without needing a separate timingSafeEqual helper.
+  if (
+    !body ||
+    typeof body.secret !== "string" ||
+    (await computeAuthToken(body.secret)) !== (await computeAuthToken(secret))
+  ) {
     return NextResponse.json({ error: "invalid_secret" }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true });

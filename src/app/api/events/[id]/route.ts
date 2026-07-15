@@ -3,7 +3,7 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { events } from "@/db/schema";
 import { isAuthed } from "@/lib/auth";
-import { detailsByType, patchEventSchema, TIMER_TYPES } from "@/lib/validation";
+import { detailsByType, patchEventSchema, POINT_TYPES, TIMER_TYPES } from "@/lib/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -43,6 +43,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "invalid", message: "endedAt before startedAt" }, { status: 400 });
   }
 
+  if (merged.endedAt === null && POINT_TYPES.includes(existing.type)) {
+    return NextResponse.json({ error: "invalid", message: "point events require endedAt" }, { status: 400 });
+  }
+
   if (merged.endedAt === null && TIMER_TYPES.includes(existing.type)) {
     const [running] = await db.select().from(events)
       .where(and(eq(events.type, existing.type), isNull(events.endedAt), ne(events.id, eventId)));
@@ -51,11 +55,30 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
   }
 
-  const [row] = await db.update(events)
-    .set({ ...merged, updatedAt: new Date() })
-    .where(eq(events.id, eventId))
-    .returning();
-  return NextResponse.json({ event: row });
+  try {
+    const [row] = await db.update(events)
+      .set({ ...merged, updatedAt: new Date() })
+      .where(eq(events.id, eventId))
+      .returning();
+    return NextResponse.json({ event: row });
+  } catch (err) {
+    // Same DrizzleQueryError/driver-error duck-typing as POST /api/events: the partial unique
+    // index (one running timer per type) can also be violated by a PATCH that clears endedAt.
+    const cause = (err as { cause?: unknown })?.cause;
+    const code = (err as { code?: string })?.code ?? (cause as { code?: string } | undefined)?.code;
+    const message = err instanceof Error ? err.message : String(err);
+    const causeMessage = cause instanceof Error ? cause.message : "";
+    if (
+      code === "23505" ||
+      message.includes("events_one_running_per_type") ||
+      causeMessage.includes("events_one_running_per_type")
+    ) {
+      const [running] = await db.select().from(events)
+        .where(and(eq(events.type, existing.type), isNull(events.endedAt), ne(events.id, eventId)));
+      return NextResponse.json({ error: "timer_running", event: running }, { status: 409 });
+    }
+    throw err;
+  }
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {

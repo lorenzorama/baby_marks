@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect width="100" height="100" rx="22" fill="#0c4a6e"/>
-  <text x="50" y="66" font-size="52" text-anchor="middle">🍼</text>
+  <!-- baby bottle, drawn with simple vector shapes -->
+  <!-- nipple -->
+  <path d="M46 16 Q50 8 54 16 L54 24 L46 24 Z" fill="#e0f2fe"/>
+  <!-- collar -->
+  <rect x="42" y="24" width="16" height="7" rx="2" fill="#7dd3fc"/>
+  <!-- body -->
+  <rect x="34" y="31" width="32" height="53" rx="10" fill="#e0f2fe"/>
+  <!-- measurement lines -->
+  <rect x="40" y="42" width="20" height="3" rx="1.5" fill="#7dd3fc"/>
+  <rect x="40" y="50" width="20" height="3" rx="1.5" fill="#7dd3fc"/>
+  <rect x="40" y="58" width="20" height="3" rx="1.5" fill="#7dd3fc"/>
+  <!-- milk level -->
+  <rect x="37" y="66" width="26" height="15" rx="6" fill="#7dd3fc"/>
 </svg>

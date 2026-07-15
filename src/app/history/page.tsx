@@ -13,6 +13,9 @@ const TYPES: (EventType | null)[] = [null, "feed", "sleep", "diaper", "pump", "m
 const chipLabels: Record<string, string> = {
   feed: "🍼", sleep: "😴", diaper: "🧷", pump: "🥛", medicine: "💊",
 };
+const chipAriaKeys: Record<string, string> = {
+  feed: "timer.feed", sleep: "timer.sleep", diaper: "actions.diaper", pump: "timer.pump", medicine: "actions.medicine",
+};
 
 export default function HistoryPage() {
   const t = useTranslations();
@@ -60,6 +63,7 @@ export default function HistoryPage() {
           <button
             key={type ?? "all"}
             onClick={() => setFilter(type)}
+            aria-label={type ? t(chipAriaKeys[type]) : t("history.all")}
             className={`shrink-0 rounded-full px-4 py-1.5 text-sm ${filter === type ? "bg-sky-600" : "bg-zinc-900"}`}
           >
             {type ? chipLabels[type] : t("history.all")}

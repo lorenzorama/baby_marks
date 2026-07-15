@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Sheet from "@/components/Sheet";
+import { toast } from "@/components/Toast";
 import { useDeleteEvent, useUpdateEvent } from "@/hooks/useEvents";
 import { fromLocalInput, toLocalInput } from "@/lib/format";
 import type { ApiEvent, Caregiver } from "@/lib/types";
@@ -13,6 +14,7 @@ export default function EditEventSheet({
   const t = useTranslations("edit");
   const tc = useTranslations("caregiver");
   const td = useTranslations("diaper");
+  const ts = useTranslations("side");
   const update = useUpdateEvent();
   const del = useDeleteEvent();
 
@@ -38,10 +40,16 @@ export default function EditEventSheet({
 
   function save() {
     if (!event) return;
+    const s = fromLocalInput(start);
+    const e = end ? fromLocalInput(end) : null;
+    if (Number.isNaN(s.getTime()) || (e !== null && Number.isNaN(e.getTime()))) {
+      toast(t("invalidDate"));
+      return;
+    }
     update.mutate({
       id: event.id,
-      startedAt: fromLocalInput(start).toISOString(),
-      endedAt: end ? fromLocalInput(end).toISOString() : null,
+      startedAt: s.toISOString(),
+      endedAt: e ? e.toISOString() : null,
       details,
       note: note.trim() ? note.trim() : null,
       caregiver,
@@ -83,7 +91,7 @@ export default function EditEventSheet({
             {(["left", "right"] as const).map((s) => (
               <button key={s} onClick={() => setDet("side", s)}
                 className={`rounded-xl py-2.5 ${details.side === s ? "bg-sky-600" : "bg-zinc-800"}`}>
-                {s === "left" ? "G" : "D"}
+                {ts(s)}
               </button>
             ))}
           </div>

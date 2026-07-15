@@ -27,8 +27,11 @@ export default function SettingsPage() {
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/login";
+    }
   }
 
   const input = "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 outline-none focus:border-sky-500";
@@ -52,7 +55,7 @@ export default function SettingsPage() {
             onClick={() =>
               saveBaby.mutate(
                 { name: name.trim(), birthDate, exists: !!baby },
-                { onSuccess: () => toast(t("saved")) },
+                { onSuccess: () => toast(t("saved"), "success") },
               )}
             className="w-full rounded-xl bg-sky-600 py-3 font-semibold disabled:opacity-50">
             {t("save")}
