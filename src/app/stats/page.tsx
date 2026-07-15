@@ -14,7 +14,11 @@ export default function StatsPage() {
   const { data: measurements } = useMeasurements();
   const createMeasurement = useCreateMeasurement();
 
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [head, setHead] = useState("");
@@ -34,11 +38,12 @@ export default function StatsPage() {
 
   function saveMeasurement() {
     const body: Record<string, unknown> = { measuredAt: date };
-    if (Number(weight)) body.weightG = Math.round(Number(weight) * 1000);
-    if (Number(height)) body.heightMm = Math.round(Number(height) * 10);
-    if (Number(head)) body.headCircMm = Math.round(Number(head) * 10);
-    createMeasurement.mutate(body);
-    setWeight(""); setHeight(""); setHead("");
+    if (Number(weight) > 0) body.weightG = Math.round(Number(weight) * 1000);
+    if (Number(height) > 0) body.heightMm = Math.round(Number(height) * 10);
+    if (Number(head) > 0) body.headCircMm = Math.round(Number(head) * 10);
+    createMeasurement.mutate(body, {
+      onSuccess: () => { setWeight(""); setHeight(""); setHead(""); },
+    });
   }
 
   const input = "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 outline-none focus:border-sky-500";
@@ -91,14 +96,14 @@ export default function StatsPage() {
         <h2 className="mb-3 text-sm font-semibold text-zinc-400">{t("addMeasurement")}</h2>
         <div className="space-y-2">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={input} />
-          <input type="number" inputMode="decimal" step="0.01" placeholder={t("weightKg")}
+          <input type="number" inputMode="decimal" step="0.01" min="0" placeholder={t("weightKg")}
             value={weight} onChange={(e) => setWeight(e.target.value)} className={input} />
-          <input type="number" inputMode="decimal" step="0.1" placeholder={t("heightCm")}
+          <input type="number" inputMode="decimal" step="0.1" min="0" placeholder={t("heightCm")}
             value={height} onChange={(e) => setHeight(e.target.value)} className={input} />
-          <input type="number" inputMode="decimal" step="0.1" placeholder={t("headCm")}
+          <input type="number" inputMode="decimal" step="0.1" min="0" placeholder={t("headCm")}
             value={head} onChange={(e) => setHead(e.target.value)} className={input} />
           <button onClick={saveMeasurement}
-            disabled={!Number(weight) && !Number(height) && !Number(head)}
+            disabled={!(Number(weight) > 0) && !(Number(height) > 0) && !(Number(head) > 0)}
             className="w-full rounded-xl bg-sky-600 py-3 font-semibold disabled:opacity-50">
             {t("save")}
           </button>
