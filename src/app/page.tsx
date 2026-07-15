@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import RunningTimers from "@/components/RunningTimers";
 import ActionGrid from "@/components/ActionGrid";
 import TimeSinceCards from "@/components/TimeSinceCards";
 import EventItem from "@/components/EventItem";
+import EditEventSheet from "@/components/EditEventSheet";
 import { useRecentEvents } from "@/hooks/useEvents";
 import { useBaby } from "@/hooks/useBaby";
+import type { ApiEvent } from "@/lib/types";
 
 export default function HomePage() {
   const t = useTranslations();
@@ -16,6 +19,7 @@ export default function HomePage() {
   const locale = useLocale();
   const { data: baby, isLoading: babyLoading } = useBaby();
   const { data } = useRecentEvents();
+  const [editing, setEditing] = useState<ApiEvent | null>(null);
 
   const events = data?.events ?? [];
   const running = data?.running ?? [];
@@ -49,11 +53,14 @@ export default function HomePage() {
             {today.map((e) => (
               <EventItem key={e.id} event={e} locale={locale} summaryT={summaryT}
                 runningLabel={summaryT("running")}
-                caregiverLabels={{ maman: tCg("initialMaman"), papa: tCg("initialPapa") }} />
+                caregiverLabels={{ maman: tCg("initialMaman"), papa: tCg("initialPapa") }}
+                onClick={() => setEditing(e)} />
             ))}
           </div>
         )}
       </section>
+
+      <EditEventSheet event={editing} onClose={() => setEditing(null)} />
     </main>
   );
 }
