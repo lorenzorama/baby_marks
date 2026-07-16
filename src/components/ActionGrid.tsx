@@ -37,36 +37,44 @@ export default function ActionGrid() {
     submit({ type, startedAt: iso, endedAt: iso, details });
   };
 
-  const btn = "flex flex-col items-center gap-1 rounded-2xl bg-zinc-900 py-4 active:bg-zinc-800";
-  const input = "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-sky-500";
-  const primary = "w-full rounded-xl bg-sky-600 py-3 font-semibold disabled:opacity-50";
+  const btn = "flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-3xl bg-surface py-3 shadow-sm active:bg-surface-2";
+  const input = "w-full rounded-2xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none focus:border-primary";
+  const primary = "w-full rounded-2xl bg-primary py-3.5 text-base font-bold text-white disabled:opacity-50 min-h-[52px]";
 
   return (
     <>
       <div className="grid grid-cols-4 gap-2">
         <button className={btn} onClick={() => startTimer("feed", { method: "breast", side: "left" })}>
-          <span className="text-2xl">🤱</span><span className="text-xs">{t("actions.nursingLeft")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-feed-tint">🤱</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.nursingLeft")}</span>
         </button>
         <button className={btn} onClick={() => startTimer("feed", { method: "breast", side: "right" })}>
-          <span className="text-2xl">🤱</span><span className="text-xs">{t("actions.nursingRight")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-feed-tint">🤱</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.nursingRight")}</span>
         </button>
         <button className={btn} onClick={() => setSheet("bottle")}>
-          <span className="text-2xl">🍼</span><span className="text-xs">{t("actions.bottle")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-feed-tint">🍼</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.bottle")}</span>
         </button>
         <button className={btn} onClick={() => startTimer("sleep")}>
-          <span className="text-2xl">😴</span><span className="text-xs">{t("actions.sleep")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-sleep-tint">😴</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.sleep")}</span>
         </button>
         <button className={btn} onClick={() => setSheet("diaper")}>
-          <span className="text-2xl">🧷</span><span className="text-xs">{t("actions.diaper")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-diaper-tint">🧷</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.diaper")}</span>
         </button>
         <button className={btn} onClick={() => startTimer("pump")}>
-          <span className="text-2xl">🥛</span><span className="text-xs">{t("actions.pump")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-pump-tint">🥛</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.pump")}</span>
         </button>
         <button className={btn} onClick={() => setSheet("medicine")}>
-          <span className="text-2xl">💊</span><span className="text-xs">{t("actions.medicine")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-medicine-tint">💊</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.medicine")}</span>
         </button>
         <button className={btn} onClick={() => setSheet("solids")}>
-          <span className="text-2xl">🥣</span><span className="text-xs">{t("actions.solids")}</span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-full text-2xl bg-feed-tint">🥣</span>
+          <span className="text-[13px] font-medium text-ink">{t("actions.solids")}</span>
         </button>
       </div>
 
@@ -84,7 +92,7 @@ export default function ActionGrid() {
       <Sheet open={sheet === "diaper"} onClose={() => setSheet(null)} title={t("actions.diaper")}>
         <div className="grid grid-cols-3 gap-2">
           {(["wet", "dirty", "both"] as const).map((kind) => (
-            <button key={kind} className="rounded-xl bg-zinc-800 py-4 font-medium active:bg-zinc-700"
+            <button key={kind} className="rounded-2xl bg-diaper-tint py-4 text-base font-semibold text-ink active:opacity-80"
               onClick={() => point("diaper", { kind })}>
               {t(`diaper.${kind}`)}
             </button>

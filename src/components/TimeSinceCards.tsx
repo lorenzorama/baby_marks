@@ -18,17 +18,20 @@ export default function TimeSinceCards({ events }: { events: ApiEvent[] }) {
   const lastDiaper = events.find((e) => e.type === "diaper");
 
   const cards = [
-    { label: t("lastFeed"), ref: lastFeed ? lastFeed.endedAt : null },
-    { label: t("lastSleep"), ref: lastSleep ? lastSleep.endedAt : null },
-    { label: t("lastDiaper"), ref: lastDiaper ? lastDiaper.startedAt : null },
+    { label: t("lastFeed"), ref: lastFeed ? lastFeed.endedAt : null, icon: "🍼", tint: "bg-feed-tint" },
+    { label: t("lastSleep"), ref: lastSleep ? lastSleep.endedAt : null, icon: "😴", tint: "bg-sleep-tint" },
+    { label: t("lastDiaper"), ref: lastDiaper ? lastDiaper.startedAt : null, icon: "🧷", tint: "bg-diaper-tint" },
   ];
 
   return (
     <div className="grid grid-cols-3 gap-2">
       {cards.map((c) => (
-        <div key={c.label} className="rounded-xl bg-zinc-900 p-3 text-center">
-          <div className="text-xs text-zinc-500">{c.label}</div>
-          <div className="mt-1 text-sm font-semibold">
+        <div key={c.label} className="rounded-3xl bg-surface p-3 text-center shadow-sm">
+          <span className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-lg ${c.tint}`}>
+            {c.icon}
+          </span>
+          <div className="mt-1.5 text-xs font-medium text-ink-soft">{c.label}</div>
+          <div className="text-base font-bold text-ink">
             {c.ref ? t("ago", { duration: formatDuration(since(now, c.ref)) }) : t("never")}
           </div>
         </div>

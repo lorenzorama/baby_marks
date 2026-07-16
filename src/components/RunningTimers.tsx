@@ -4,9 +4,8 @@ import { useTranslations } from "next-intl";
 import { useNow } from "@/hooks/useNow";
 import { useUpdateEvent } from "@/hooks/useEvents";
 import { formatClock } from "@/lib/format";
+import { activityIcon, activityTint, activityAccentBg } from "@/lib/activity";
 import type { ApiEvent } from "@/lib/types";
-
-const icons: Record<string, string> = { feed: "🍼", sleep: "😴", pump: "🥛" };
 
 export default function RunningTimers({ running }: { running: ApiEvent[] }) {
   const t = useTranslations("timer");
@@ -21,17 +20,19 @@ export default function RunningTimers({ running }: { running: ApiEvent[] }) {
         const label = e.type === "feed" ? t("feed") : e.type === "sleep" ? t("sleep") : t("pump");
         const side = (e.details as { side?: string }).side;
         return (
-          <div key={e.id} className="flex items-center gap-3 rounded-2xl border border-sky-800 bg-sky-950/40 p-3">
-            <span className="text-2xl">{icons[e.type] ?? "⏱"}</span>
+          <div key={e.id} className={`flex items-center gap-4 rounded-3xl p-5 ${activityTint[e.type]}`}>
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-surface text-3xl">
+              {activityIcon[e.type] ?? "⏱"}
+            </span>
             <div className="flex-1">
-              <div className="text-sm font-medium">
+              <div className="text-sm font-semibold text-ink-soft">
                 {label}{side ? ` · ${ts(side)}` : ""}
               </div>
-              <div className="font-mono text-2xl tabular-nums">{formatClock(secs)}</div>
+              <div className="font-mono text-5xl font-bold tabular-nums">{formatClock(secs)}</div>
             </div>
             <button
               onClick={() => update.mutate({ id: e.id, endedAt: new Date().toISOString() })}
-              className="rounded-xl bg-sky-600 px-5 py-3 font-semibold active:bg-sky-700"
+              className={`min-h-[56px] rounded-2xl px-6 py-4 text-lg font-bold text-white active:opacity-90 ${activityAccentBg[e.type]}`}
             >
               {t("stop")}
             </button>

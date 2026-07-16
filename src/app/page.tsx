@@ -29,10 +29,10 @@ export default function HomePage() {
   if (!babyLoading && baby === null) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
-        <div className="text-5xl">👶</div>
-        <h1 className="text-xl font-bold">{t("onboarding.title")}</h1>
-        <p className="text-zinc-400">{t("onboarding.text")}</p>
-        <Link href="/settings" className="rounded-xl bg-sky-600 px-6 py-3 font-semibold">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-feed-tint text-5xl">👶</div>
+        <h1 className="text-2xl font-bold">{t("onboarding.title")}</h1>
+        <p className="text-base text-ink-soft">{t("onboarding.text")}</p>
+        <Link href="/settings" className="rounded-2xl bg-primary px-8 py-4 text-base font-bold text-white">
           {t("onboarding.cta")}
         </Link>
       </main>
@@ -40,14 +40,14 @@ export default function HomePage() {
   }
 
   return (
-    <main className="space-y-4 p-4 pb-28">
+    <main className="space-y-6 p-5 pb-28">
       <RunningTimers running={running} />
       <ActionGrid />
       <TimeSinceCards events={events} />
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("timeline.today")}</h2>
+        <h2 className="mb-2 text-base font-semibold text-ink">{t("timeline.today")}</h2>
         {today.length === 0 ? (
-          <p className="text-sm text-zinc-600">{t("timeline.empty")}</p>
+          <p className="text-sm text-ink-soft">{t("timeline.empty")}</p>
         ) : (
           <div className="space-y-1.5">
             {today.map((e) => (
