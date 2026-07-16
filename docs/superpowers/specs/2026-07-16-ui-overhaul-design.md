@@ -29,18 +29,18 @@ Bigger, more readable text; cuter, warmer look; better one-handed ergonomics; cl
 | `--color-success` | `#4d9e6f` | `#6fbf8f` |
 | `--color-danger` | `#d05b5b` | `#e07a7a` |
 
-Per-activity accents, each with `-accent` (strong: icons, bars, dots) and `-tint` (soft background) variants, tuned for contrast in both themes:
+Per-activity accents, each with `-accent` (strong: icons, bars, dots) and `-tint` (soft background) variants. **Accent values validated with the dataviz palette validator** (lightness band, chroma floor, CVD separation, contrast vs surface — all PASS in both modes; single light-mode contrast WARN on feed is relieved by visible ink value-labels on every bar):
 
 | Activity | Accent (light/dark) | Tint (light/dark) |
 |---|---|---|
-| feed | `#e2926b` / `#eda57e` peach | `#fbeadd` / `#3a2c22` |
-| sleep | `#9b8ec4` / `#b0a4d6` lavender | `#efeaf9` / `#2e2a3c` |
-| diaper | `#6cab8d` / `#84c2a4` mint | `#e3f2ea` / `#22322a` |
-| pump | `#d98aa6` / `#e5a2ba` rose | `#f9e7ee` / `#392730` |
-| medicine | `#c9a24e` / `#d9b566` butter | `#f7edd6` / `#37301f` |
-| growth | `#6a9fc0` / `#83b4d3` sky | `#e4eff7` / `#233039` |
+| feed | `#d97c4e` / `#d0703f` peach | `#f9e8dd` / `#3a2a1f` |
+| sleep | `#8672c9` / `#967ecf` lavender | `#ece7f8` / `#2d2839` |
+| diaper | `#3f9d70` / `#43a173` mint | `#e0f1e8` / `#21322a` |
+| pump | `#cc6690` / `#cc6a95` rose | `#f8e6ee` / `#38262e` |
+| medicine | `#b78b2e` / `#b0872b` butter | `#f5edd8` / `#332c1c` |
+| growth | `#3f87b8` / `#4f94c4` sky | `#e2eef6` / `#223039` |
 
-Charts consume the same accent tokens (dataviz guidance applies when chart code is touched).
+Tints are decorative backgrounds only (never carry data). Charts consume accent tokens; chart text (values, axis labels) always wears ink tokens, never the series color. Each chart is single-series — no legends needed, the section title names the series.
 
 ## 2. Typography & ergonomics
 
