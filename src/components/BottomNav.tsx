@@ -16,17 +16,21 @@ export default function BottomNav() {
   const t = useTranslations("nav");
   if (pathname === "/login") return null;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-zinc-800 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       {tabs.map((tab) => {
         const active = pathname === tab.href;
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex flex-col items-center gap-0.5 py-2 text-xs ${active ? "text-sky-400" : "text-zinc-500"}`}
+            className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium"
           >
-            <span className="text-xl">{tab.icon}</span>
-            {t(tab.key)}
+            <span
+              className={`flex h-9 w-14 items-center justify-center rounded-full text-2xl ${active ? "bg-primary/15" : ""}`}
+            >
+              {tab.icon}
+            </span>
+            <span className={active ? "text-primary" : "text-ink-soft"}>{t(tab.key)}</span>
           </Link>
         );
       })}

@@ -23,9 +23,9 @@ export function Toaster() {
     return () => { listener = null; };
   }, []);
   if (!toastState) return null;
-  const bg = toastState.variant === "success" ? "bg-emerald-600" : "bg-red-600";
+  const bg = toastState.variant === "success" ? "bg-success" : "bg-danger";
   return (
-    <div className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl ${bg} px-4 py-2 text-sm font-medium text-white shadow-lg`}>
+    <div className={`fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl ${bg} px-5 py-3 text-base font-medium text-white shadow-lg`}>
       {toastState.msg}
     </div>
   );
