@@ -1,6 +1,6 @@
 {
   "nav": { "home": "Home", "history": "History", "stats": "Stats", "settings": "Settings" },
-  "login": { "title": "Baby Marks", "placeholder": "Secret phrase", "submit": "Enter", "error": "Wrong phrase" },
+  "login": { "title": "Baby Marks", "subtitle": "Your baby's little logbook", "placeholder": "Secret phrase", "submit": "Enter", "error": "Wrong phrase" },
   "onboarding": { "title": "Welcome!", "text": "Start by creating your baby's profile.", "cta": "Create profile" },
   "actions": { "nursingLeft": "Left breast", "nursingRight": "Right breast", "bottle": "Bottle", "sleep": "Sleep", "diaper": "Diaper", "pump": "Pump", "medicine": "Medicine", "solids": "Solids" },
   "timer": { "stop": "Stop", "feed": "Nursing", "sleep": "Sleep", "pump": "Pumping", "alreadyRunning": "A timer is already running for this activity" },

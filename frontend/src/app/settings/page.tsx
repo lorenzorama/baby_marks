@@ -6,6 +6,23 @@ import { toast } from "@/components/Toast";
 import { useBaby, useSaveBaby } from "@/hooks/useBaby";
 import { useCaregiver } from "@/hooks/useCaregiver";
 
+const SCREEN = "space-y-6 p-5 pb-28";
+const CARD = "rounded-3xl bg-surface p-4 shadow-sm";
+const INPUT = "w-full rounded-2xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none focus:border-primary";
+const PRIMARY_BTN = "w-full rounded-2xl bg-primary py-3.5 text-base font-bold text-white disabled:opacity-50";
+const LABEL = "mb-1 block text-sm font-medium text-ink-soft";
+const SEG_ON = "flex-1 rounded-2xl bg-primary py-3 font-semibold text-white";
+const SEG_OFF = "flex-1 rounded-2xl bg-surface-2 py-3 font-semibold text-ink-soft";
+
+function SectionHeader({ icon, tint, title }: { icon: string; tint: string; title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className={`flex h-9 w-9 items-center justify-center rounded-full text-lg ${tint}`}>{icon}</span>
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const t = useTranslations("settings");
   const tc = useTranslations("caregiver");
@@ -34,22 +51,22 @@ export default function SettingsPage() {
     }
   }
 
-  const input = "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 outline-none focus:border-sky-500";
-  const section = "rounded-2xl bg-zinc-900/60 p-4";
-  const segBtn = (active: boolean) =>
-    `flex-1 rounded-xl py-2.5 font-medium ${active ? "bg-sky-600" : "bg-zinc-800"}`;
-
   return (
-    <main className="space-y-4 p-4 pb-28">
-      <h1 className="text-xl font-bold">{t("title")}</h1>
+    <main className={SCREEN}>
+      <h1 className="text-2xl font-bold text-ink">{t("title")}</h1>
 
-      <section className={section}>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400">{t("babySection")}</h2>
-        <div className="space-y-2">
-          <input value={name} onChange={(e) => setName(e.target.value)}
-            placeholder={t("name")} className={input} />
-          <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
-            className={input} />
+      <section className={CARD}>
+        <SectionHeader icon="👶" tint="bg-feed-tint" title={t("babySection")} />
+        <div className="space-y-3">
+          <div>
+            <label className={LABEL}>{t("name")}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>{t("birthDate")}</label>
+            <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
+              className={INPUT} />
+          </div>
           <button
             disabled={!name.trim() || !birthDate || saveBaby.isPending}
             onClick={() =>
@@ -57,29 +74,29 @@ export default function SettingsPage() {
                 { name: name.trim(), birthDate, exists: !!baby },
                 { onSuccess: () => toast(t("saved"), "success") },
               )}
-            className="w-full rounded-xl bg-sky-600 py-3 font-semibold disabled:opacity-50">
+            className={PRIMARY_BTN}>
             {t("save")}
           </button>
         </div>
       </section>
 
-      <section className={section}>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400">{t("caregiverSection")}</h2>
+      <section className={CARD}>
+        <SectionHeader icon="💛" tint="bg-medicine-tint" title={t("caregiverSection")} />
         <div className="flex gap-2">
-          <button className={segBtn(caregiver === "maman")} onClick={() => setCaregiver("maman")}>{tc("maman")}</button>
-          <button className={segBtn(caregiver === "papa")} onClick={() => setCaregiver("papa")}>{tc("papa")}</button>
+          <button className={caregiver === "maman" ? SEG_ON : SEG_OFF} onClick={() => setCaregiver("maman")}>{tc("maman")}</button>
+          <button className={caregiver === "papa" ? SEG_ON : SEG_OFF} onClick={() => setCaregiver("papa")}>{tc("papa")}</button>
         </div>
       </section>
 
-      <section className={section}>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400">{t("languageSection")}</h2>
+      <section className={CARD}>
+        <SectionHeader icon="🌍" tint="bg-growth-tint" title={t("languageSection")} />
         <div className="flex gap-2">
-          <button className={segBtn(locale === "fr")} onClick={() => setLocale("fr")}>Français</button>
-          <button className={segBtn(locale === "en")} onClick={() => setLocale("en")}>English</button>
+          <button className={locale === "fr" ? SEG_ON : SEG_OFF} onClick={() => setLocale("fr")}>Français</button>
+          <button className={locale === "en" ? SEG_ON : SEG_OFF} onClick={() => setLocale("en")}>English</button>
         </div>
       </section>
 
-      <button onClick={logout} className="w-full rounded-xl bg-zinc-900 py-3 font-semibold text-red-400">
+      <button onClick={logout} className="min-h-[48px] w-full rounded-2xl bg-surface py-3.5 font-semibold text-danger shadow-sm">
         {t("logout")}
       </button>
     </main>
