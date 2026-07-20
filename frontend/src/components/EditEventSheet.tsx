@@ -35,8 +35,8 @@ export default function EditEventSheet({
 
   if (!event) return null;
 
-  const input = "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 outline-none focus:border-sky-500";
-  const label = "mb-1 block text-xs text-zinc-500";
+  const input = "w-full rounded-2xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none focus:border-primary";
+  const label = "mb-1 block text-sm font-medium text-ink-soft";
 
   function save() {
     if (!event) return;
@@ -78,7 +78,7 @@ export default function EditEventSheet({
         <div>
           <label className={label}>{t("end")}</label>
           <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={input} />
-          {!end && <p className="mt-1 text-xs text-sky-400">{t("running")}</p>}
+          {!end && <p className="mt-1 text-xs font-medium text-sleep">{t("running")}</p>}
         </div>
 
         {event.type === "feed" && details.method === "bottle" && (
@@ -90,7 +90,7 @@ export default function EditEventSheet({
           <div className="grid grid-cols-2 gap-2">
             {(["left", "right"] as const).map((s) => (
               <button key={s} onClick={() => setDet("side", s)}
-                className={`rounded-xl py-2.5 ${details.side === s ? "bg-sky-600" : "bg-zinc-800"}`}>
+                className={details.side === s ? "rounded-2xl bg-primary py-3 font-semibold text-white" : "rounded-2xl bg-surface-2 py-3 font-semibold text-ink-soft"}>
                 {ts(s)}
               </button>
             ))}
@@ -100,7 +100,7 @@ export default function EditEventSheet({
           <div className="grid grid-cols-3 gap-2">
             {(["wet", "dirty", "both"] as const).map((k) => (
               <button key={k} onClick={() => setDet("kind", k)}
-                className={`rounded-xl py-2.5 text-sm ${details.kind === k ? "bg-sky-600" : "bg-zinc-800"}`}>
+                className={details.kind === k ? "rounded-2xl bg-primary py-3 font-semibold text-white" : "rounded-2xl bg-surface-2 py-3 font-semibold text-ink-soft"}>
                 {td(k)}
               </button>
             ))}
@@ -127,7 +127,7 @@ export default function EditEventSheet({
           <div className="grid grid-cols-2 gap-2">
             {(["maman", "papa"] as const).map((c) => (
               <button key={c} onClick={() => setCaregiver(c)}
-                className={`rounded-xl py-2.5 ${caregiver === c ? "bg-sky-600" : "bg-zinc-800"}`}>
+                className={caregiver === c ? "rounded-2xl bg-primary py-3 font-semibold text-white" : "rounded-2xl bg-surface-2 py-3 font-semibold text-ink-soft"}>
                 {tc(c)}
               </button>
             ))}
@@ -135,10 +135,10 @@ export default function EditEventSheet({
         </div>
 
         <div className="flex gap-2 pt-2">
-          <button onClick={remove} className="flex-1 rounded-xl bg-red-900/60 py-3 font-semibold text-red-200">
+          <button onClick={remove} className="flex-1 rounded-2xl bg-danger/15 py-3.5 font-bold text-danger">
             {t("delete")}
           </button>
-          <button onClick={save} className="flex-[2] rounded-xl bg-sky-600 py-3 font-semibold">
+          <button onClick={save} className="flex-[2] rounded-2xl bg-primary py-3.5 font-bold text-white">
             {t("save")}
           </button>
         </div>

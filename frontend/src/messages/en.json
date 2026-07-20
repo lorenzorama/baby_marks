@@ -10,6 +10,7 @@
   "diaper": { "wet": "Wet", "dirty": "Dirty", "both": "Both" },
   "summary": { "breastLeft": "Left breast", "breastRight": "Right breast", "breast": "Breast", "bottle": "Bottle {ml} ml", "solids": "Solids · {food}", "sleep": "Sleep", "diaperWet": "Diaper · wet", "diaperDirty": "Diaper · dirty", "diaperBoth": "Diaper · wet + dirty", "pump": "Pump {ml} ml", "medicine": "Medicine · {name}", "running": "running" },
   "history": { "title": "History", "all": "All", "empty": "No events", "loadMore": "Load more" },
+  "types": { "feed": "Feeds", "sleep": "Sleep", "diaper": "Diapers", "pump": "Pump", "medicine": "Medicine" },
   "edit": { "title": "Edit", "start": "Start", "end": "End", "running": "Running (no end)", "note": "Note", "caregiver": "Who?", "save": "Save", "delete": "Delete", "confirmDelete": "Delete this event?", "invalidDate": "Invalid date" },
   "caregiver": { "maman": "Mom", "papa": "Dad", "initialMaman": "M", "initialPapa": "D" },
   "side": { "left": "L", "right": "R" },
