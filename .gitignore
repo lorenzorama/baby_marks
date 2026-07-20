@@ -42,3 +42,4 @@ yarn-error.log*
 next-env.d.ts
 
 .pglite/
+/frontend/node_modules

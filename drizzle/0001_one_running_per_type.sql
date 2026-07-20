@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "events_one_running_per_type" ON "events" USING btree ("type") WHERE ended_at IS NULL;
