@@ -7,6 +7,21 @@ import LineChart from "@/components/LineChart";
 import { useStats } from "@/hooks/useStats";
 import { useCreateMeasurement, useMeasurements } from "@/hooks/useMeasurements";
 
+const SCREEN = "space-y-6 p-5 pb-28";
+const CARD = "rounded-3xl bg-surface p-4 shadow-sm";
+const INPUT = "w-full rounded-2xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none focus:border-primary";
+const PRIMARY_BTN = "w-full rounded-2xl bg-primary py-3.5 text-base font-bold text-white disabled:opacity-50";
+const LABEL = "mb-1 block text-sm font-medium text-ink-soft";
+
+function SectionHeader({ icon, tint, title }: { icon: string; tint: string; title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className={`flex h-9 w-9 items-center justify-center rounded-full text-lg ${tint}`}>{icon}</span>
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const t = useTranslations("stats");
   const locale = useLocale();
@@ -46,65 +61,74 @@ export default function StatsPage() {
     });
   }
 
-  const input = "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 outline-none focus:border-sky-500";
-  const section = "rounded-2xl bg-zinc-900/60 p-4";
-
   return (
-    <main className="space-y-4 p-4 pb-28">
-      <h1 className="text-xl font-bold">{t("title")}</h1>
+    <main className={SCREEN}>
+      <h1 className="text-2xl font-bold text-ink">{t("title")}</h1>
 
-      <section className={section}>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("sleepPerDay")}</h2>
-        <BarChart data={chart((d) => Math.round((d.sleepMinutes / 60) * 10) / 10)} color="bg-indigo-500" />
+      <section className={CARD}>
+        <SectionHeader icon="😴" tint="bg-sleep-tint" title={t("sleepPerDay")} />
+        <BarChart data={chart((d) => Math.round((d.sleepMinutes / 60) * 10) / 10)} color="bg-sleep" />
       </section>
-      <section className={section}>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("feedsPerDay")}</h2>
-        <BarChart data={chart((d) => d.feedCount)} />
+      <section className={CARD}>
+        <SectionHeader icon="🍼" tint="bg-feed-tint" title={t("feedsPerDay")} />
+        <BarChart data={chart((d) => d.feedCount)} color="bg-feed" />
       </section>
-      <section className={section}>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("bottleMlPerDay")}</h2>
-        <BarChart data={chart((d) => d.bottleMl)} color="bg-teal-500" />
+      <section className={CARD}>
+        <SectionHeader icon="🍼" tint="bg-feed-tint" title={t("bottleMlPerDay")} />
+        <BarChart data={chart((d) => d.bottleMl)} color="bg-feed" />
       </section>
-      <section className={section}>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("diapersPerDay")}</h2>
-        <BarChart data={chart((d) => d.diaperWet + d.diaperDirty + d.diaperBoth)} color="bg-amber-500" />
+      <section className={CARD}>
+        <SectionHeader icon="🧷" tint="bg-diaper-tint" title={t("diapersPerDay")} />
+        <BarChart data={chart((d) => d.diaperWet + d.diaperDirty + d.diaperBoth)} color="bg-diaper" />
       </section>
-      <section className={section}>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("pumpMlPerDay")}</h2>
-        <BarChart data={chart((d) => d.pumpMl)} color="bg-pink-500" />
+      <section className={CARD}>
+        <SectionHeader icon="🥛" tint="bg-pump-tint" title={t("pumpMlPerDay")} />
+        <BarChart data={chart((d) => d.pumpMl)} color="bg-pump" />
       </section>
 
-      <section className={section}>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-400">{t("growth")}</h2>
+      <section className={CARD}>
+        <SectionHeader icon="📏" tint="bg-growth-tint" title={t("growth")} />
         {weightPoints.length >= 2 ? (
           <>
-            <p className="text-xs text-zinc-500">{t("weight")}</p>
+            <p className="text-xs font-medium text-ink-soft">{t("weight")}</p>
             <LineChart points={weightPoints} />
           </>
         ) : (
-          <p className="text-sm text-zinc-600">{t("needTwoPoints")}</p>
+          <p className="text-sm text-ink-soft">{t("needTwoPoints")}</p>
         )}
         {heightPoints.length >= 2 && (
           <>
-            <p className="mt-2 text-xs text-zinc-500">{t("height")}</p>
+            <p className="mt-2 text-xs font-medium text-ink-soft">{t("height")}</p>
             <LineChart points={heightPoints} />
           </>
         )}
       </section>
 
-      <section className={section}>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400">{t("addMeasurement")}</h2>
-        <div className="space-y-2">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={input} />
-          <input type="number" inputMode="decimal" step="0.01" min="0" placeholder={t("weightKg")}
-            value={weight} onChange={(e) => setWeight(e.target.value)} className={input} />
-          <input type="number" inputMode="decimal" step="0.1" min="0" placeholder={t("heightCm")}
-            value={height} onChange={(e) => setHeight(e.target.value)} className={input} />
-          <input type="number" inputMode="decimal" step="0.1" min="0" placeholder={t("headCm")}
-            value={head} onChange={(e) => setHead(e.target.value)} className={input} />
+      <section className={CARD}>
+        <SectionHeader icon="📏" tint="bg-growth-tint" title={t("addMeasurement")} />
+        <div className="space-y-3">
+          <div>
+            <label className={LABEL}>{t("date")}</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>{t("weightKg")}</label>
+            <input type="number" inputMode="decimal" step="0.01" min="0"
+              value={weight} onChange={(e) => setWeight(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>{t("heightCm")}</label>
+            <input type="number" inputMode="decimal" step="0.1" min="0"
+              value={height} onChange={(e) => setHeight(e.target.value)} className={INPUT} />
+          </div>
+          <div>
+            <label className={LABEL}>{t("headCm")}</label>
+            <input type="number" inputMode="decimal" step="0.1" min="0"
+              value={head} onChange={(e) => setHead(e.target.value)} className={INPUT} />
+          </div>
           <button onClick={saveMeasurement}
             disabled={!(Number(weight) > 0) && !(Number(height) > 0) && !(Number(head) > 0)}
-            className="w-full rounded-xl bg-sky-600 py-3 font-semibold disabled:opacity-50">
+            className={PRIMARY_BTN}>
             {t("save")}
           </button>
         </div>

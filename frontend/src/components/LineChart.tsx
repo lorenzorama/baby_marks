@@ -13,15 +13,15 @@ export default function LineChart({
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.value)}`).join(" ");
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      <path d={path} fill="none" stroke="#38bdf8" strokeWidth="2" />
+      <path d={path} style={{ stroke: "var(--growth-accent)" }} strokeWidth={2.5} fill="none" />
       {points.map((p, i) => (
         <g key={i}>
-          <circle cx={x(i)} cy={y(p.value)} r="3" fill="#38bdf8" />
-          <text x={x(i)} y={H - 6} textAnchor="middle" fontSize="9" fill="#71717a">{p.label}</text>
+          <circle cx={x(i)} cy={y(p.value)} r={4} style={{ fill: "var(--growth-accent)" }} />
+          <text x={x(i)} y={H - 6} textAnchor="middle" fontSize={10} style={{ fill: "var(--ink-soft)" }}>{p.label}</text>
         </g>
       ))}
-      <text x={PAD - 4} y={y(max) + 3} textAnchor="end" fontSize="9" fill="#71717a">{max}</text>
-      <text x={PAD - 4} y={y(min) + 3} textAnchor="end" fontSize="9" fill="#71717a">{min}</text>
+      <text x={PAD - 4} y={y(max) + 3} textAnchor="end" fontSize={10} style={{ fill: "var(--ink-soft)" }}>{max}</text>
+      <text x={PAD - 4} y={y(min) + 3} textAnchor="end" fontSize={10} style={{ fill: "var(--ink-soft)" }}>{min}</text>
     </svg>
   );
 }
