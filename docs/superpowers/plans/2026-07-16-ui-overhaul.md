@@ -366,3 +366,173 @@ en: `"types": { "feed": "Feeds", "sleep": "Sleep", "diaper": "Diapers", "pump": 
 - [ ] **Step 3:** Browser pass at 390px: Home (with a running timer + events), History (filtered + edit sheet open), Stats (charts + form), Settings, Login — screenshot each in light AND dark (emulate `prefers-color-scheme`). Check: no unreadable text, no clipped layouts, tap targets comfortable, charts colored by accent.
 - [ ] **Step 4:** Fix anything found (presentation-only), re-run step 1.
 - [ ] **Step 5:** Commit — `style: final polish after two-theme visual pass`
+
+---
+
+## ADDENDUM (2026-07-20) — applies to ALL tasks including 3-6
+
+**Repo was restructured:** Next app now lives in `frontend/` (old `src/app/api/*` routes deleted; FastAPI backend in `backend/` serves the same contract through a Next rewrite). Every `src/...` path in Tasks 1-6 is now `frontend/src/...`. Frontend commands run from `frontend/` (`npm run test`, `npx tsc --noEmit`, `npm run build`). The frontend vitest suite now contains only the auth + format tests — "tests green" means those pass. Backend gate: `cd backend && python3 -m pytest` (15 pass; API suite auto-skips without BM_TEST_DATABASE_URL). Dev servers: `docker compose up db backend` (or backend via uvicorn with DATABASE_URL) + `cd frontend && npm run dev` (rewrite targets http://localhost:8000).
+
+### Task 7: Layout mode infrastructure (Auto/Mobile/Web)
+
+**Files:**
+- Create: `frontend/src/hooks/useLayoutMode.tsx`, `frontend/src/components/TopBar.tsx`
+- Modify: `frontend/src/app/providers.tsx` (wrap provider), `frontend/src/app/layout.tsx` (render TopBar above children), `frontend/src/components/BottomNav.tsx` (hide in web mode), `frontend/src/messages/fr.json` + `en.json` (`mode` group)
+
+**Interfaces:**
+- Produces `useLayoutMode(): { setting: "auto"|"mobile"|"web"; mode: "mobile"|"web"; setSetting(s): void }` and `LayoutModeProvider`.
+
+- [ ] **Step 1: `frontend/src/hooks/useLayoutMode.tsx`**
+
+```tsx
+"use client";
+
+import { createContext, useContext, useEffect, useState } from "react";
+
+export type LayoutSetting = "auto" | "mobile" | "web";
+export type LayoutMode = "mobile" | "web";
+
+const KEY = "bm_layout";
+const QUERY = "(min-width: 768px)";
+
+const Ctx = createContext<{
+  setting: LayoutSetting;
+  mode: LayoutMode;
+  setSetting: (s: LayoutSetting) => void;
+}>({ setting: "auto", mode: "mobile", setSetting: () => {} });
+
+export function LayoutModeProvider({ children }: { children: React.ReactNode }) {
+  const [setting, setSettingState] = useState<LayoutSetting>("auto");
+  const [wide, setWide] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(KEY);
+    if (stored === "mobile" || stored === "web" || stored === "auto") setSettingState(stored);
+    const mq = window.matchMedia(QUERY);
+    setWide(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setWide(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const setSetting = (s: LayoutSetting) => {
+    setSettingState(s);
+    localStorage.setItem(KEY, s);
+  };
+
+  const mode: LayoutMode = setting === "auto" ? (wide ? "web" : "mobile") : setting;
+  return <Ctx.Provider value={{ setting, mode, setSetting }}>{children}</Ctx.Provider>;
+}
+
+export function useLayoutMode() {
+  return useContext(Ctx);
+}
+```
+
+- [ ] **Step 2: `frontend/src/components/TopBar.tsx`**
+
+```tsx
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useLayoutMode, LayoutSetting } from "@/hooks/useLayoutMode";
+
+const settings: LayoutSetting[] = ["auto", "mobile", "web"];
+const tabs = [
+  { href: "/", key: "home" },
+  { href: "/history", key: "history" },
+  { href: "/stats", key: "stats" },
+  { href: "/settings", key: "settings" },
+] as const;
+
+export default function TopBar() {
+  const pathname = usePathname();
+  const t = useTranslations("nav");
+  const tm = useTranslations("mode");
+  const { setting, mode, setSetting } = useLayoutMode();
+  if (pathname === "/login") return null;
+  return (
+    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4">
+        <div className="flex items-center gap-2 text-base font-bold">
+          <span className="text-xl">🍼</span>
+          <span>Baby Marks</span>
+        </div>
+        {mode === "web" && (
+          <nav className="flex items-center gap-1">
+            {tabs.map((tab) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${pathname === tab.href ? "bg-primary/15 text-primary" : "text-ink-soft"}`}
+              >
+                {t(tab.key)}
+              </Link>
+            ))}
+          </nav>
+        )}
+        <div className="flex items-center rounded-full bg-surface-2 p-1">
+          {settings.map((s) => (
+            <button
+              key={s}
+              onClick={() => setSetting(s)}
+              className={`min-h-[36px] rounded-full px-3 text-xs font-semibold ${setting === s ? "bg-primary text-white" : "text-ink-soft"}`}
+            >
+              {tm(s)}
+            </button>
+          ))}
+        </div>
+      </div>
+    </header>
+  );
+}
+```
+
+- [ ] **Step 3:** providers.tsx wraps children with `LayoutModeProvider` (inside QueryClientProvider). layout.tsx renders `<TopBar />` immediately before `{children}` (inside Providers/NextIntlClientProvider). BottomNav adds `const { mode } = useLayoutMode();` and returns null when `mode === "web"` (keep the /login check).
+- [ ] **Step 4:** i18n `mode` group, both catalogs: fr `{ "auto": "Auto", "mobile": "Mobile", "web": "Web" }`, en identical.
+- [ ] **Step 5:** Verify (frontend tests + tsc; dev: TopBar renders, switch persists after reload via localStorage, BottomNav hides in Web). Commit `feat: layout mode infrastructure with Auto/Mobile/Web switch`.
+
+### Task 8: Web-mode layouts per screen
+
+**Files:** Modify `frontend/src/app/page.tsx`, `history/page.tsx`, `stats/page.tsx`, `settings/page.tsx`
+
+- [ ] **Step 1: Home** — `const { mode } = useLayoutMode();` Main wrapper: mobile keeps `space-y-6 p-5 pb-28`; web: `mx-auto max-w-5xl p-6 pb-10`. In web mode render `<div className="grid grid-cols-2 gap-6"><div className="space-y-6">{RunningTimers}{ActionGrid}</div><div className="space-y-6">{TimeSinceCards}{today section}</div></div>`; mobile order unchanged. (Extract the two column fragments into local variables to avoid duplicating JSX.)
+- [ ] **Step 2: History & Settings** — wrapper `mx-auto max-w-2xl p-6 pb-10` in web mode (content unchanged). **Stats** — `mx-auto max-w-3xl p-6 pb-10`; in web mode wrap the five chart sections in `grid grid-cols-2 gap-4` with growth + add-measurement sections spanning `col-span-2`; mobile unchanged.
+- [ ] **Step 3:** Verify (tests+tsc; dev at 1280px: two-column Home, centered pages; at 390px unchanged). Commit `feat: web-mode layouts (two-column home, centered pages)`.
+
+### Task 9: TimeWheelPicker (wheels + quick chips)
+
+**Files:**
+- Create: `frontend/src/components/TimeWheelPicker.tsx`
+- Modify: `frontend/src/components/EditEventSheet.tsx` (mobile-mode picker buttons), `frontend/src/messages/fr.json` + `en.json` (`picker` group)
+
+**Interfaces:**
+- `TimeWheelPicker({ open, title, value, allowClear?, onDone(d: Date), onClear?(), onClose })` — value: Date; onDone fires with the picked Date; onClear only rendered when allowClear.
+
+- [ ] **Step 1: `frontend/src/components/TimeWheelPicker.tsx`** — bottom sheet reusing `Sheet`. Inside:
+  - Day chips row: `picker.today` / `picker.yesterday` chips (`rounded-full px-4 py-2.5 text-sm font-semibold`, selected `bg-primary text-white`, else `bg-surface-2 text-ink-soft`) + a native `<input type="date">` (INPUT recipe, flex-1) for other days; selecting a chip/date keeps the wheel time.
+  - Wheels: hour (0-23) and minute (0-59) columns side by side; each `h-[220px] overflow-y-auto snap-y snap-mandatory scrollbar: none` with `py-[88px]` spacer padding; items `flex h-11 snap-center items-center justify-center text-xl font-semibold tabular-nums text-ink-soft` (selected value `text-ink`); a pointer-events-none selection band `absolute inset-x-0 top-1/2 h-11 -translate-y-1/2 rounded-xl bg-primary/10`. On mount and when value changes scroll each wheel to the current index (`scrollTop = index * 44`); on scroll (debounced 120ms) compute `Math.round(scrollTop / 44)` and update.
+  - Quick chips: `picker.now`, `−5 min`, `−15 min`, `−30 min` (relative to NOW, i.e. `new Date(Date.now() - m*60000)`) — style like day chips.
+  - If `allowClear`: full-width chip `picker.noEnd` (`rounded-2xl bg-sleep-tint py-3 font-semibold text-sleep`) → `onClear()` + close.
+  - Done: PRIMARY_BTN with `picker.done` → `onDone(current)` + close.
+- [ ] **Step 2: EditEventSheet integration** — `const { mode } = useLayoutMode();` For `mode === "mobile"`: replace the two `datetime-local` inputs with buttons (INPUT recipe + `text-left`) showing the value formatted via `new Date(x).toLocaleString(locale fr-FR/en-GB, { weekday: "short", hour: "2-digit", minute: "2-digit" })` (end button shows `t("edit.running")` when empty); tapping opens TimeWheelPicker (`allowClear` on the end field; onClear sets end to ""). Web mode: existing inputs untouched. All save/guard logic unchanged (picker writes back through the same `setStart(toLocalInput(d))`/`setEnd(...)` state).
+- [ ] **Step 3:** i18n `picker` group: fr `{ "today": "Aujourd'hui", "yesterday": "Hier", "now": "Maintenant", "done": "OK", "noEnd": "En cours (pas de fin)" }`; en `{ "today": "Today", "yesterday": "Yesterday", "now": "Now", "done": "Done", "noEnd": "Still running (no end)" }`.
+- [ ] **Step 4:** Verify (tests+tsc; dev mobile mode: picker opens, wheels snap, chips set time, noEnd clears end, save produces same PATCH payloads as before). Commit `feat: wheel time picker with quick-adjust chips (mobile mode)`.
+
+### Task 10: Migration hygiene (backend-split gaps)
+
+**Files:** Modify `frontend/src/proxy.ts`, `README.md`, `.env.example`; Create `backend/.env.example`
+
+- [ ] **Step 1:** proxy.ts — exempt health: after the `/api/auth/` exemption add `if (pathname === "/api/health") return NextResponse.next();`
+- [ ] **Step 2:** Rewrite `README.md`: architecture (frontend Next 16 + backend FastAPI + Postgres 17), quick start `docker compose up --build` (app on :3000, api on :8000), local dev without docker (backend: `cd backend && pip install -r requirements.txt && DATABASE_URL=... uvicorn app.main:app --reload`; frontend: `cd frontend && npm install && npm run dev`), env vars table (`APP_SECRET_PHRASE` both services, `DATABASE_URL`, `COOKIE_SECURE=true` behind HTTPS, `BACKEND_URL` = frontend BUILD-time arg — image rebuild required to change it), tests (`cd frontend && npm run test`; `cd backend && python3 -m pytest`, note `BM_TEST_DATABASE_URL` enables the API integration suite), note: no CORS middleware by design (same-origin via Next rewrite).
+- [ ] **Step 3:** Root `.env.example` → just `APP_SECRET_PHRASE=change-me` + pointer comments to `backend/.env.example`; create `backend/.env.example` with `DATABASE_URL=postgresql://baby:baby@localhost:5432/baby_marks`, `APP_SECRET_PHRASE=change-me`, `COOKIE_SECURE=false`.
+- [ ] **Step 4:** Verify (frontend tests+tsc; backend pytest 15 pass; dev: curl unauthenticated `http://localhost:3000/api/health` → 200 through the proxy). Commit `fix: unshadow /api/health; docs for FastAPI split`.
+
+### Task 11: Final modes × themes verification
+
+- [ ] **Step 1:** Gates: frontend tests + tsc + build; backend pytest.
+- [ ] **Step 2:** Catalog mirror check (fr/en identical key sets).
+- [ ] **Step 3:** Browser matrix: 390px (mobile mode) / 820px (web auto) / 1280px (web) × light + dark: Home, History (edit sheet + wheel picker open), Stats, Settings, Login. Check: no unreadable text/clipping, switch persists, two-column Home only in web mode, picker wheels usable.
+- [ ] **Step 4:** Fix presentation-only issues found; re-run gates. Commit `style: final modes/themes polish`.
