@@ -1,0 +1,64 @@
+# Production stack for Hostinger VPS + Docker Manager (Traefik).
+#
+# Prerequisites:
+#   1. Hostinger KVM VPS with Docker Manager
+#   2. Traefik template project deployed (creates the traefik-proxy network)
+#   3. DNS A record: DOMAIN → your VPS IP
+#
+# Deploy:
+#   cp .env.example .env   # fill DOMAIN, POSTGRES_PASSWORD, APP_SECRET_PHRASE
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-baby}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-baby_marks}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-baby} -d ${POSTGRES_DB:-baby_marks}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-baby}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-baby_marks}
+      APP_SECRET_PHRASE: ${APP_SECRET_PHRASE:?set APP_SECRET_PHRASE in .env}
+      COOKIE_SECURE: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    restart: unless-stopped
+    environment:
+      APP_SECRET_PHRASE: ${APP_SECRET_PHRASE}
+    depends_on:
+      - backend
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.rule=Host(`${DOMAIN:?set DOMAIN in .env}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.entrypoints=websecure
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}.tls.certresolver=letsencrypt
+      - traefik.http.services.${COMPOSE_PROJECT_NAME}.loadbalancer.server.port=3000
+    networks:
+      - default
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true
+
+volumes:
+  pgdata:

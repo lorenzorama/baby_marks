@@ -77,3 +77,32 @@ Tints are decorative backgrounds only (never carry data). Charts consume accent 
 ## Out of scope
 
 Manual theme toggle (follows system only), pinch-zoom change, component library adoption, icon-font/SVG icon system (emoji stay), behavioral changes of any kind.
+
+---
+
+## Addendum (2026-07-20, approved): tablet/web mode, layout switch, touch time picker
+
+**Context change:** repo restructured — Next app now in `frontend/` (API route handlers removed), Python FastAPI backend in `backend/` (same API contract, same `bm_auth` HMAC cookie), Postgres via docker-compose. All frontend paths in this spec/plan now live under `frontend/`.
+
+### Layout modes
+- Modes: `mobile` (today's layout: bottom tabs, single column) and `web` (iPad/desktop: top-bar nav, centered max-width, Home in two columns).
+- Selection: `auto` (viewport ≥768px → web) with manual override `mobile`/`web`; setting persisted in `localStorage.bm_layout`; exposed by a `useLayoutMode()` context (`{ setting, mode, setSetting }`), SSR-safe (defaults to mobile until mounted).
+- A slim TopBar on all screens except /login: app name left; Auto/Mobile/Web segmented switch right (44px+ targets); in web mode it also carries the four nav links and BottomNav hides.
+- Web-mode layouts: Home `max-w-5xl`, two columns (timers+action grid | time-since+timeline); History/Settings `max-w-2xl`; Stats `max-w-3xl` with 2-up chart card grid. Tap targets stay ≥48px in both modes.
+- New mirrored keys: `mode.auto/mobile/web`.
+
+### Touch time picker (mobile/tablet mode)
+- `TimeWheelPicker` bottom sheet: day row (Aujourd'hui/Hier chips + native date input for older dates), hour+minute scroll-snap wheels (48px rows, snap-center, primary-tint selection band), quick chips **Maintenant / −5 / −15 / −30 min**, Done button. For the *end* field: an extra "still running (no end)" chip clears the value.
+- EditEventSheet start/end fields become picker-opening buttons in mobile mode; web mode keeps native `datetime-local` inputs. Saved payloads unchanged.
+- New mirrored keys: `picker.today/yesterday/now/done/noEnd`.
+- Ring/dial picker explicitly rejected (slower for exact minutes); wheels+chips chosen.
+
+### Migration hygiene (from backend-split review)
+- `frontend/src/proxy.ts`: exempt `/api/health` from the auth gate (backend exposes it unauthenticated for probes).
+- Rewrite `README.md` for the new architecture (docker compose up; services db/backend/frontend; env vars incl. `COOKIE_SECURE`, `APP_SECRET_PHRASE` on both services; note that `BACKEND_URL` is a frontend build-time arg); refresh `.env.example`s.
+- Document (not fix): no CORS middleware (same-origin by design); backend integration tests require `BM_TEST_DATABASE_URL`.
+
+### Verification gates (updated for the split)
+- Frontend: `cd frontend && npm run test` (remaining vitest suites) + `npx tsc --noEmit` + `npm run build`.
+- Backend: `cd backend && python3 -m pytest` (15 tests; API suite skips without `BM_TEST_DATABASE_URL`).
+- Visual pass: 390px / 820px / 1280px, light+dark, mobile+web modes.
