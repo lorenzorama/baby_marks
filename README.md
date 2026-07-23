@@ -128,7 +128,7 @@ Data persists in the `pgdata` Docker volume.
 
 ### Notes
 
-- Only the **frontend** is exposed via Traefik. The API is proxied internally (`/api/*` → backend container).
+- Only the **frontend** and the **MCP/OAuth paths** on the backend are exposed via Traefik. The `/api/*` paths stay internal, proxied via the frontend rewrite.
 - Set a strong `APP_SECRET_PHRASE` — it is the only login for both parents.
 - `docker-compose.prod.yml` sets `COOKIE_SECURE=true` on the backend since Traefik terminates HTTPS — don't flip this on for the plain-HTTP local `docker-compose.yml`.
 - Back up the Postgres volume periodically (`docker volume inspect baby_marks_pgdata`).

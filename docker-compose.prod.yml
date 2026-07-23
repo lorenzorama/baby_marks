@@ -34,7 +34,7 @@ services:
       COOKIE_SECURE: "true"
       MCP_ACCESS_SECRET: ${MCP_ACCESS_SECRET:?set MCP_ACCESS_SECRET in .env}
       MCP_JWT_SECRET: ${MCP_JWT_SECRET:?set MCP_JWT_SECRET in .env}
-      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:?set MCP_PUBLIC_URL in .env}
       MCP_DEFAULT_TIMEZONE: ${MCP_DEFAULT_TIMEZONE:-Europe/Paris}
     depends_on:
       db:
@@ -45,6 +45,7 @@ services:
       # by FastAPI, so this must NOT overlap with /api (that stays internal,
       # proxied only via the frontend's rewrite).
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.rule=Host(`${DOMAIN:?set DOMAIN in .env}`) && (PathPrefix(`/mcp`) || PathPrefix(`/.well-known/oauth-authorization-server`) || PathPrefix(`/.well-known/oauth-protected-resource`) || Path(`/register`) || Path(`/authorize`) || Path(`/token`))
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.priority=100 # outrank frontend catch-all Host rule
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.entrypoints=websecure
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.tls.certresolver=letsencrypt
       - traefik.http.services.${COMPOSE_PROJECT_NAME}-mcp.loadbalancer.server.port=8000
