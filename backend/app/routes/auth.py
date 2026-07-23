@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 
 from fastapi import APIRouter
@@ -21,6 +22,7 @@ async def login(body: LoginInput) -> JSONResponse:
     if not hmac.compare_digest(
         compute_auth_token(body.secret), compute_auth_token(secret)
     ):
+        await asyncio.sleep(0.5)  # brute-force damper
         raise ApiError(401, "invalid_secret")
     res = JSONResponse({"ok": True})
     res.set_cookie(
@@ -38,5 +40,11 @@ async def login(body: LoginInput) -> JSONResponse:
 @router.post("/logout")
 async def logout() -> JSONResponse:
     res = JSONResponse({"ok": True})
-    res.delete_cookie(COOKIE_NAME, httponly=True, path="/")
+    res.delete_cookie(
+        COOKIE_NAME,
+        httponly=True,
+        samesite="lax",
+        secure=cookie_secure(),
+        path="/",
+    )
     return res

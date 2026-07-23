@@ -46,7 +46,7 @@ Tints are decorative backgrounds only (never carry data). Charts consume accent 
 
 - Base font-size 17px (`html`), line-height comfortable; `-apple-system` stack kept.
 - Scale: page titles `text-2xl font-bold`; section headers `text-base font-semibold` (up from `text-sm`, no more all-muted); card values `text-lg`; secondary text `text-sm` minimum (nothing below 12px except chart axis labels).
-- Timer digits: `text-5xl` tabular numerals.
+- Timer digits: `text-3xl` tabular numerals (reduced from 5xl — overflow at 390px).
 - Tap targets ≥ 48px; action-grid buttons ≥ 72px tall with 30px icons and `text-[13px]` labels.
 - Radii: cards `rounded-3xl`, buttons/chips `rounded-2xl`/full; soft shadows in light theme (`shadow-sm` warm), none needed in dark.
 - Spacing: screens `p-5 space-y-6`; cards `p-4`+.

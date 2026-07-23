@@ -119,6 +119,45 @@ async def test_point_events_require_ended_at(client):
     assert res.json()["error"] == "invalid"
 
 
+async def test_patch_details_null_coerced_to_empty_dict(client):
+    await seed_baby(client)
+    res = await client.post(
+        "/api/events",
+        json={
+            "type": "sleep",
+            "startedAt": "2026-07-15T10:00:00Z",
+            "endedAt": "2026-07-15T11:00:00Z",
+            "details": {},
+            "caregiver": "maman",
+        },
+    )
+    assert res.status_code == 201
+    event_id = res.json()["event"]["id"]
+
+    # Explicit null for a type whose details may be empty ({}) validates fine.
+    res = await client.patch(f"/api/events/{event_id}", json={"details": None})
+    assert res.status_code == 200
+    assert res.json()["event"]["details"] == {}
+
+    # Explicit null for a type that requires fields in details is a 400, never a 500.
+    res = await client.post(
+        "/api/events",
+        json={
+            "type": "diaper",
+            "startedAt": "2026-07-15T10:00:00Z",
+            "endedAt": "2026-07-15T10:00:00Z",
+            "details": {"kind": "wet"},
+            "caregiver": "maman",
+        },
+    )
+    assert res.status_code == 201
+    diaper_id = res.json()["event"]["id"]
+
+    res = await client.patch(f"/api/events/{diaper_id}", json={"details": None})
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid"
+
+
 async def test_baby_singleton(client):
     await seed_baby(client)
     res = await client.post("/api/baby", json={"name": "Two", "birthDate": "2026-06-02"})

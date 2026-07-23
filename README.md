@@ -45,8 +45,11 @@ Frontend:
 ```bash
 cd frontend
 npm install
-npm run dev
+APP_SECRET_PHRASE=change-me npm run dev
 ```
+
+`APP_SECRET_PHRASE` must be set for the frontend too (matching the backend's), either inline as
+above or via `frontend/.env.local` — without it every page redirects to `/login`.
 
 ## Environment variables
 

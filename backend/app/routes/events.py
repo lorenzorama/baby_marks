@@ -140,7 +140,7 @@ async def patch_event(event_id: int, body: PatchEventInput) -> dict:
         ended = ensure_utc(body.endedAt) if body.endedAt else None
     else:
         ended = existing["ended_at"]
-    details = body.details if "details" in provided else (existing["details"] or {})
+    details = (body.details or {}) if "details" in provided else (existing["details"] or {})
     note = body.note if "note" in provided else existing["note"]
     caregiver = body.caregiver if body.caregiver else existing["caregiver"]
 
