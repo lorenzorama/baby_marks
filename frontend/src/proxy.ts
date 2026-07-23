@@ -4,6 +4,7 @@ import { isAuthed } from "@/lib/auth";
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname === "/login" || pathname.startsWith("/api/auth/")) return NextResponse.next();
+  if (pathname === "/api/health") return NextResponse.next();
   if (await isAuthed(req)) return NextResponse.next();
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

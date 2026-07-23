@@ -3,9 +3,18 @@
 Mobile-first tracker for a baby's feedings, sleep, diapers, pumping, medicine and growth.
 Built for two parents sharing one database — timers live in the backend and sync across phones.
 
-## Stack
+## Architecture
 
-Next.js (frontend) · FastAPI + uv (backend) · PostgreSQL · Docker · next-intl (fr/en) · Tailwind
+- **frontend** — Next.js 16 app (App Router, next-intl fr/en, Tailwind). Serves the UI and
+  proxies `/api/*` to the backend via `next.config.ts` rewrites (baked in at build time — see
+  `BACKEND_URL` below), so the browser only ever talks to one origin.
+- **backend** — FastAPI + uv, talking to Postgres over `asyncpg`. Owns auth, timers, and all
+  `/api/*` routes, including an unauthenticated `/api/health` probe.
+- **db** — PostgreSQL 17.
+
+Only the frontend is exposed publicly; the backend is reached exclusively through the frontend's
+rewrite, so there's no CORS middleware by design — everything is same-origin from the browser's
+point of view.
 
 ## Local dev (Docker)
 
@@ -14,21 +23,55 @@ cp .env.example .env
 # edit APP_SECRET_PHRASE if you like
 
 docker compose up --build
-# → http://localhost:3000
+# → app on http://localhost:3000
+# → api on http://localhost:8000
 ```
 
 Log in with `APP_SECRET_PHRASE`, create a baby in Settings, then start a timer — it survives page refresh because it is stored in Postgres.
 
-Backend tests (unit, no Postgres needed):
+## Local dev (without Docker)
+
+Backend (needs a running Postgres — e.g. `docker compose up -d db`):
 
 ```bash
-cd backend && uv run pytest
+cd backend
+pip install uv
+uv sync
+DATABASE_URL=postgresql://baby:baby@localhost:5432/baby_marks uv run uvicorn app.main:app --reload
 ```
 
-Frontend tests:
+Frontend:
 
 ```bash
-cd frontend && npm test
+cd frontend
+npm install
+npm run dev
+```
+
+## Environment variables
+
+| Variable | Where | Default | Notes |
+|---|---|---|---|
+| `APP_SECRET_PHRASE` | frontend + backend | — | Shared login secret for both parents. Must match on both services. |
+| `DATABASE_URL` | backend | — | e.g. `postgresql://baby:baby@localhost:5432/baby_marks`. Required, no default. |
+| `COOKIE_SECURE` | backend | `false` | Set `true` when serving over HTTPS (e.g. behind Traefik on the VPS). If `true` on plain HTTP, the browser silently drops the auth cookie. |
+| `BACKEND_URL` | frontend | `http://backend:8000` | **Build-time** arg (`ARG BACKEND_URL` in `frontend/Dockerfile`) — Next.js serializes the API rewrite into the build, so changing it requires rebuilding the frontend image, not just restarting the container. |
+
+## Tests
+
+```bash
+cd frontend && npm run test   # vitest
+cd frontend && npx tsc --noEmit
+
+cd backend && python3 -m pytest   # or: uv run pytest
+```
+
+Backend tests run without Postgres by default (DB-dependent tests are skipped). Set
+`BM_TEST_DATABASE_URL` to a live Postgres URL to also run the API integration suite
+(`tests/test_api.py`):
+
+```bash
+BM_TEST_DATABASE_URL=postgresql://baby:baby@localhost:5432/baby_marks python3 -m pytest
 ```
 
 ## Deploy on Hostinger VPS
@@ -80,4 +123,5 @@ Data persists in the `pgdata` Docker volume.
 
 - Only the **frontend** is exposed via Traefik. The API is proxied internally (`/api/*` → backend container).
 - Set a strong `APP_SECRET_PHRASE` — it is the only login for both parents.
+- `docker-compose.prod.yml` sets `COOKIE_SECURE=true` on the backend since Traefik terminates HTTPS — don't flip this on for the plain-HTTP local `docker-compose.yml`.
 - Back up the Postgres volume periodically (`docker volume inspect baby_marks_pgdata`).
