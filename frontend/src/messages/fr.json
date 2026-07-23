@@ -1,5 +1,6 @@
 {
   "nav": { "home": "Accueil", "history": "Historique", "stats": "Stats", "settings": "Réglages" },
+  "mode": { "auto": "Auto", "mobile": "Mobile", "web": "Web" },
   "login": { "title": "Baby Marks", "subtitle": "Le petit journal de bébé", "placeholder": "Phrase secrète", "submit": "Entrer", "error": "Phrase incorrecte" },
   "onboarding": { "title": "Bienvenue !", "text": "Commencez par créer le profil de votre bébé.", "cta": "Créer le profil" },
   "actions": { "nursingLeft": "Sein G", "nursingRight": "Sein D", "bottle": "Biberon", "sleep": "Dodo", "diaper": "Couche", "pump": "Tire-lait", "medicine": "Médoc", "solids": "Solides" },

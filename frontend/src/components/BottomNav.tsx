@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 
 const tabs = [
   { href: "/", key: "home", icon: "🏠" },
@@ -14,7 +15,9 @@ const tabs = [
 export default function BottomNav() {
   const pathname = usePathname();
   const t = useTranslations("nav");
+  const { mode } = useLayoutMode();
   if (pathname === "/login") return null;
+  if (mode === "web") return null;
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       {tabs.map((tab) => {

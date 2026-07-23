@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import Providers from "./providers";
 import BottomNav from "@/components/BottomNav";
+import TopBar from "@/components/TopBar";
 import { Toaster } from "@/components/Toast";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="antialiased">
         <NextIntlClientProvider messages={messages}>
           <Providers>
+            <TopBar />
             {children}
             <BottomNav />
             <Toaster />
