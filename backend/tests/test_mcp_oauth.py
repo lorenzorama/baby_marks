@@ -419,3 +419,68 @@ async def test_token_malformed_request_is_invalid_request(client):
     res = await client.post("/token", data={"grant_type": "bogus"})
     assert res.status_code == 400
     assert res.json()["error"] == "invalid_request"
+
+
+async def test_concurrent_refresh_reuse_is_single_use(client):
+    """Regression for the SELECT-then-DELETE race: N concurrent /token refresh
+    requests with the SAME refresh token must not all succeed. Exactly one
+    should win (200) and the rest must be rejected (400 invalid_grant), and
+    exactly one new refresh row should exist for the client afterwards.
+    """
+    import asyncio
+
+    from app import db as db_module
+
+    registered = await register_client(client)
+    verifier, challenge = pkce_pair()
+    redirect_uri = "https://claude.ai/callback"
+
+    form = {
+        "client_id": registered["client_id"],
+        "redirect_uri": redirect_uri,
+        "state": "s",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "response_type": "code",
+        "secret": MCP_ACCESS_SECRET,
+    }
+    auth_res = await client.post("/authorize", data=form)
+    code = parse_qs(urlsplit(auth_res.headers["location"]).query)["code"][0]
+
+    token_res = await client.post(
+        "/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": verifier,
+            "client_id": registered["client_id"],
+            "redirect_uri": redirect_uri,
+        },
+    )
+    assert token_res.status_code == 200, token_res.text
+    refresh_token = token_res.json()["refresh_token"]
+
+    concurrency = 6
+    responses = await asyncio.gather(
+        *[
+            client.post(
+                "/token", data={"grant_type": "refresh_token", "refresh_token": refresh_token}
+            )
+            for _ in range(concurrency)
+        ]
+    )
+
+    successes = [r for r in responses if r.status_code == 200]
+    failures = [r for r in responses if r.status_code == 400]
+
+    assert len(successes) == 1, [r.status_code for r in responses]
+    assert len(failures) == concurrency - 1
+    for r in failures:
+        assert r.json()["error"] == "invalid_grant"
+
+    pool = await db_module.get_pool()
+    rows = await pool.fetch(
+        "SELECT token_hash FROM mcp_refresh_tokens WHERE client_id=$1",
+        registered["client_id"],
+    )
+    assert len(rows) == 1

@@ -240,14 +240,16 @@ async def authorize(request: Request):
 
     await _load_and_validate_client(client_id, redirect_uri)
 
+    no_store = {"Cache-Control": "no-store"}  # OAuth 2.1 authorize response hygiene
+
     if request.method == "GET":
-        return HTMLResponse(_render_authorize_form(params))
+        return HTMLResponse(_render_authorize_form(params), headers=no_store)
 
     supplied_secret = params.get("secret") or ""
     expected_secret = mcp_access_secret()
     if not hmac.compare_digest(supplied_secret.encode(), expected_secret.encode()):
         await asyncio.sleep(0.5)  # brute-force damper, same convention as app/routes/auth.py
-        return HTMLResponse(_render_authorize_form(params, error="Incorrect secret."))
+        return HTMLResponse(_render_authorize_form(params, error="Incorrect secret."), headers=no_store)
 
     code = secrets.token_urlsafe(32)
     _AUTH_CODES[code] = {
@@ -257,7 +259,7 @@ async def authorize(request: Request):
         "expires": time.time() + AUTH_CODE_TTL_SECONDS,
     }
     location = f"{redirect_uri}?{urlencode({'code': code, 'state': state})}"
-    return RedirectResponse(url=location, status_code=302)
+    return RedirectResponse(url=location, status_code=302, headers=no_store)
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +286,8 @@ async def _issue_token_pair(client_id: str) -> JSONResponse:
             "token_type": "bearer",
             "expires_in": ACCESS_TOKEN_TTL_SECONDS,
             "refresh_token": refresh_token,
-        }
+        },
+        headers={"Cache-Control": "no-store"},  # OAuth 2.1 token response hygiene
     )
 
 
@@ -320,17 +323,23 @@ async def _exchange_refresh_token(form: dict) -> JSONResponse:
 
     token_hash = hash_refresh_token(refresh_token)
     pool = await get_pool()
+
+    # Atomic check-and-delete: a single DELETE ... RETURNING statement means
+    # the row can be consumed by at most one concurrent request. Without this,
+    # a SELECT-then-DELETE pair lets N concurrent requests with the same
+    # refresh token all observe the row via SELECT before any DELETE commits,
+    # so all N succeed -- breaking single-use rotation. Postgres row-level
+    # locking serializes concurrent DELETEs on the same row: only the first
+    # one returns it, the rest see zero rows.
     row = await pool.fetchrow(
-        "SELECT client_id, expires_at FROM mcp_refresh_tokens WHERE token_hash=$1",
+        "DELETE FROM mcp_refresh_tokens WHERE token_hash=$1 RETURNING client_id, expires_at",
         token_hash,
     )
     if row is None:
         raise ApiError(400, "invalid_grant")
 
-    # Rotate: delete the old refresh token unconditionally (single-use) before
-    # checking expiry, so an expired-but-reused token dies the same way.
-    await pool.execute("DELETE FROM mcp_refresh_tokens WHERE token_hash=$1", token_hash)
-
+    # Token was consumed either way (rotated out above); an expired-but-reused
+    # token dies the same way as an unknown one.
     if row["expires_at"] < datetime.now(timezone.utc):
         raise ApiError(400, "invalid_grant")
 
