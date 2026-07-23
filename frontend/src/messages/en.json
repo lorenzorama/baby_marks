@@ -13,6 +13,7 @@
   "history": { "title": "History", "all": "All", "empty": "No events", "loadMore": "Load more" },
   "types": { "feed": "Feeds", "sleep": "Sleep", "diaper": "Diapers", "pump": "Pump", "medicine": "Medicine" },
   "edit": { "title": "Edit", "start": "Start", "end": "End", "running": "Running (no end)", "note": "Note", "caregiver": "Who?", "save": "Save", "delete": "Delete", "confirmDelete": "Delete this event?", "invalidDate": "Invalid date" },
+  "picker": { "today": "Today", "yesterday": "Yesterday", "now": "Now", "done": "Done", "noEnd": "Still running (no end)" },
   "caregiver": { "maman": "Mom", "papa": "Dad", "initialMaman": "M", "initialPapa": "D" },
   "side": { "left": "L", "right": "R" },
   "stats": { "title": "Stats", "sleepPerDay": "Sleep (h / day)", "feedsPerDay": "Feeds / day", "bottleMlPerDay": "Bottles (ml / day)", "diapersPerDay": "Diapers / day", "pumpMlPerDay": "Pump (ml / day)", "growth": "Growth", "weight": "Weight (kg)", "height": "Height (cm)", "needTwoPoints": "Add at least two measurements to see the curve.", "addMeasurement": "Add measurement", "date": "Date", "weightKg": "Weight (kg)", "heightCm": "Height (cm)", "headCm": "Head circumference (cm)", "save": "Save" },

@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Sheet from "@/components/Sheet";
+import TimeWheelPicker from "@/components/TimeWheelPicker";
 import { toast } from "@/components/Toast";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 import { useDeleteEvent, useUpdateEvent } from "@/hooks/useEvents";
 import { fromLocalInput, toLocalInput } from "@/lib/format";
 import type { ApiEvent, Caregiver } from "@/lib/types";
+
+function formatPickerLabel(localInput: string, locale: string) {
+  return new Date(localInput).toLocaleString(locale === "fr" ? "fr-FR" : "en-GB", {
+    weekday: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
 
 export default function EditEventSheet({
   event, onClose,
@@ -15,6 +23,8 @@ export default function EditEventSheet({
   const tc = useTranslations("caregiver");
   const td = useTranslations("diaper");
   const ts = useTranslations("side");
+  const locale = useLocale();
+  const { mode } = useLayoutMode();
   const update = useUpdateEvent();
   const del = useDeleteEvent();
 
@@ -23,6 +33,7 @@ export default function EditEventSheet({
   const [note, setNote] = useState("");
   const [caregiver, setCaregiver] = useState<Caregiver>("maman");
   const [details, setDetails] = useState<Record<string, unknown>>({});
+  const [picker, setPicker] = useState<null | "start" | "end">(null);
 
   useEffect(() => {
     if (!event) return;
@@ -71,15 +82,34 @@ export default function EditEventSheet({
   return (
     <Sheet open onClose={onClose} title={t("title")}>
       <div className="space-y-3">
-        <div>
-          <label className={label}>{t("start")}</label>
-          <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className={input} />
-        </div>
-        <div>
-          <label className={label}>{t("end")}</label>
-          <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={input} />
-          {!end && <p className="mt-1 text-xs font-medium text-sleep">{t("running")}</p>}
-        </div>
+        {mode === "mobile" ? (
+          <>
+            <div>
+              <label className={label}>{t("start")}</label>
+              <button type="button" onClick={() => setPicker("start")} className={`${input} text-left`}>
+                {start ? formatPickerLabel(start, locale) : ""}
+              </button>
+            </div>
+            <div>
+              <label className={label}>{t("end")}</label>
+              <button type="button" onClick={() => setPicker("end")} className={`${input} text-left`}>
+                {end ? formatPickerLabel(end, locale) : t("running")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className={label}>{t("start")}</label>
+              <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className={input} />
+            </div>
+            <div>
+              <label className={label}>{t("end")}</label>
+              <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={input} />
+              {!end && <p className="mt-1 text-xs font-medium text-sleep">{t("running")}</p>}
+            </div>
+          </>
+        )}
 
         {event.type === "feed" && details.method === "bottle" && (
           <input type="number" inputMode="numeric" value={String(details.amountMl ?? "")}
@@ -143,6 +173,21 @@ export default function EditEventSheet({
           </button>
         </div>
       </div>
+
+      {mode === "mobile" && (
+        <TimeWheelPicker
+          open={picker !== null}
+          title={picker === "end" ? t("end") : t("start")}
+          value={picker === "end" ? (end ? fromLocalInput(end) : new Date()) : (start ? fromLocalInput(start) : new Date())}
+          allowClear={picker === "end"}
+          onDone={(d) => {
+            if (picker === "start") setStart(toLocalInput(d));
+            else setEnd(toLocalInput(d));
+          }}
+          onClear={() => setEnd("")}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </Sheet>
   );
 }
