@@ -59,6 +59,10 @@ above or via `frontend/.env.local` — without it every page redirects to `/logi
 | `DATABASE_URL` | backend | — | e.g. `postgresql://baby:baby@localhost:5432/baby_marks`. Required, no default. |
 | `COOKIE_SECURE` | backend | `false` | Set `true` when serving over HTTPS (e.g. behind Traefik on the VPS). If `true` on plain HTTP, the browser silently drops the auth cookie. |
 | `BACKEND_URL` | frontend | `http://backend:8000` | **Build-time** arg (`ARG BACKEND_URL` in `frontend/Dockerfile`) — Next.js serializes the API rewrite into the build, so changing it requires rebuilding the frontend image, not just restarting the container. |
+| `MCP_ACCESS_SECRET` | backend | — | Password entered on the MCP `/authorize` form when connecting claude.ai. Required in production. Rotate to revoke connector access. |
+| `MCP_JWT_SECRET` | backend | — | Signs MCP access/refresh tokens. Required in production. Rotate to revoke connector access. |
+| `MCP_PUBLIC_URL` | backend | — | Externally-reachable origin serving `/mcp`, e.g. `https://baby.yourdomain.com` (no trailing slash). Required in production. |
+| `MCP_DEFAULT_TIMEZONE` | backend | `Europe/Paris` | IANA tz name used when an MCP tool call doesn't specify one. |
 
 ## Tests
 
@@ -128,3 +132,48 @@ Data persists in the `pgdata` Docker volume.
 - Set a strong `APP_SECRET_PHRASE` — it is the only login for both parents.
 - `docker-compose.prod.yml` sets `COOKIE_SECURE=true` on the backend since Traefik terminates HTTPS — don't flip this on for the plain-HTTP local `docker-compose.yml`.
 - Back up the Postgres volume periodically (`docker volume inspect baby_marks_pgdata`).
+
+## MCP server (claude.ai connector)
+
+The backend also exposes an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so you can ask
+Claude (via claude.ai's custom connectors) to log feedings, check timers, or read stats in natural
+language instead of the app UI. It reads and writes the same Postgres data as the web app — nothing
+is duplicated. The OAuth endpoints backing the connector (RFC 8414/9728/7591) are mounted at the
+backend root alongside `/mcp`: `/.well-known/oauth-authorization-server`,
+`/.well-known/oauth-protected-resource`, `/register`, `/authorize`, `/token`.
+
+### Enable it
+
+1. Set `MCP_ACCESS_SECRET`, `MCP_JWT_SECRET`, and `MCP_PUBLIC_URL` in `.env` (see
+   [Environment variables](#environment-variables) above) — `MCP_PUBLIC_URL` must be the
+   externally-reachable `https://` origin serving `/mcp`, i.e. `https://${DOMAIN}`.
+2. Confirm DNS for `DOMAIN` already points at the VPS (same record used for the web app).
+3. Bring the stack up as usual:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+
+   `docker-compose.prod.yml` adds a second Traefik router on the **backend** service that exposes
+   only `/mcp`, the two `/.well-known/*` paths, `/register`, `/authorize`, and `/token` — `/api/*`
+   stays internal and unchanged, proxied only via the frontend's rewrite.
+
+### Connect from claude.ai
+
+1. Go to **Settings → Connectors → Add custom connector**.
+2. Enter `https://<domain>/mcp` (e.g. `https://baby.yourdomain.com/mcp`).
+3. When prompted to authorize, enter the `MCP_ACCESS_SECRET` value as the secret.
+
+### Revoke access
+
+Rotate `MCP_JWT_SECRET` (invalidates every issued token) or `MCP_ACCESS_SECRET` (blocks new
+authorizations) in `.env`, then redeploy. There's no per-client revocation — rotating either secret
+signs out every connected client, so reconnect from claude.ai afterward.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| `/.well-known/...` returns 404 | The Traefik router on the backend service is missing or misconfigured — check the backend `labels` in `docker-compose.prod.yml` and redeploy. |
+| claude.ai keeps looping back to the authorize/401 screen | `MCP_JWT_SECRET` was rotated or doesn't match what issued the token — remove and re-add the connector. |
+| Connector connects but tools or data are missing | Check backend logs: `docker compose -f docker-compose.prod.yml logs backend`. |

@@ -21,6 +21,10 @@ services:
       DATABASE_URL: postgresql://baby:baby@db:5432/baby_marks
       APP_SECRET_PHRASE: ${APP_SECRET_PHRASE:-change-me}
       COOKIE_SECURE: "false"
+      MCP_ACCESS_SECRET: ${MCP_ACCESS_SECRET:-change-me-mcp}
+      MCP_JWT_SECRET: ${MCP_JWT_SECRET:-change-me-mcp-jwt}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:8000}
+      MCP_DEFAULT_TIMEZONE: ${MCP_DEFAULT_TIMEZONE:-Europe/Paris}
     depends_on:
       db:
         condition: service_healthy

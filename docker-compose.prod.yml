@@ -32,9 +32,25 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-baby}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-baby_marks}
       APP_SECRET_PHRASE: ${APP_SECRET_PHRASE:?set APP_SECRET_PHRASE in .env}
       COOKIE_SECURE: "true"
+      MCP_ACCESS_SECRET: ${MCP_ACCESS_SECRET:?set MCP_ACCESS_SECRET in .env}
+      MCP_JWT_SECRET: ${MCP_JWT_SECRET:?set MCP_JWT_SECRET in .env}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL}
+      MCP_DEFAULT_TIMEZONE: ${MCP_DEFAULT_TIMEZONE:-Europe/Paris}
     depends_on:
       db:
         condition: service_healthy
+    labels:
+      - traefik.enable=true
+      # MCP + OAuth endpoints only (see backend/app/mcp/NOTES.md) — root-mounted
+      # by FastAPI, so this must NOT overlap with /api (that stays internal,
+      # proxied only via the frontend's rewrite).
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.rule=Host(`${DOMAIN:?set DOMAIN in .env}`) && (PathPrefix(`/mcp`) || PathPrefix(`/.well-known/oauth-authorization-server`) || PathPrefix(`/.well-known/oauth-protected-resource`) || Path(`/register`) || Path(`/authorize`) || Path(`/token`))
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.entrypoints=websecure
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.tls.certresolver=letsencrypt
+      - traefik.http.services.${COMPOSE_PROJECT_NAME}-mcp.loadbalancer.server.port=8000
+    networks:
+      - default
+      - traefik-proxy
 
   frontend:
     build:
