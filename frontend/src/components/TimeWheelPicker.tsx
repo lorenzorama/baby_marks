@@ -127,7 +127,7 @@ export default function TimeWheelPicker({
               const [y, m, d] = e.target.value.split("-").map(Number);
               setDay(new Date(y, m - 1, d));
             }}
-            className={`${INPUT} flex-1`}
+            className={`${INPUT} min-w-0 flex-1`}
           />
         </div>
 
