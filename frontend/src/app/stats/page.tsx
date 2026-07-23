@@ -6,8 +6,10 @@ import BarChart from "@/components/BarChart";
 import LineChart from "@/components/LineChart";
 import { useStats } from "@/hooks/useStats";
 import { useCreateMeasurement, useMeasurements } from "@/hooks/useMeasurements";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 
-const SCREEN = "space-y-6 p-5 pb-28";
+const SCREEN_MOBILE = "space-y-6 p-5 pb-28";
+const SCREEN_WEB = "mx-auto max-w-3xl p-6 pb-10";
 const CARD = "rounded-3xl bg-surface p-4 shadow-sm";
 const INPUT = "w-full rounded-2xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none focus:border-primary";
 const PRIMARY_BTN = "w-full rounded-2xl bg-primary py-3.5 text-base font-bold text-white disabled:opacity-50";
@@ -25,6 +27,7 @@ function SectionHeader({ icon, tint, title }: { icon: string; tint: string; titl
 export default function StatsPage() {
   const t = useTranslations("stats");
   const locale = useLocale();
+  const { mode } = useLayoutMode();
   const { data: days } = useStats(7);
   const { data: measurements } = useMeasurements();
   const createMeasurement = useCreateMeasurement();
@@ -61,10 +64,8 @@ export default function StatsPage() {
     });
   }
 
-  return (
-    <main className={SCREEN}>
-      <h1 className="text-2xl font-bold text-ink">{t("title")}</h1>
-
+  const chartSections = (
+    <>
       <section className={CARD}>
         <SectionHeader icon="😴" tint="bg-sleep-tint" title={t("sleepPerDay")} />
         <BarChart data={chart((d) => Math.round((d.sleepMinutes / 60) * 10) / 10)} color="bg-sleep" />
@@ -85,54 +86,78 @@ export default function StatsPage() {
         <SectionHeader icon="🥛" tint="bg-pump-tint" title={t("pumpMlPerDay")} />
         <BarChart data={chart((d) => d.pumpMl)} color="bg-pump" />
       </section>
+    </>
+  );
 
-      <section className={CARD}>
-        <SectionHeader icon="📏" tint="bg-growth-tint" title={t("growth")} />
-        {weightPoints.length >= 2 ? (
-          <>
-            <p className="text-xs font-medium text-ink-soft">{t("weight")}</p>
-            <LineChart points={weightPoints} />
-          </>
-        ) : (
-          <p className="text-sm text-ink-soft">{t("needTwoPoints")}</p>
-        )}
-        {heightPoints.length >= 2 && (
-          <>
-            <p className="mt-2 text-xs font-medium text-ink-soft">{t("height")}</p>
-            <LineChart points={heightPoints} />
-          </>
-        )}
-      </section>
+  const growthSection = (
+    <section className={`${CARD}${mode === "web" ? " col-span-2" : ""}`}>
+      <SectionHeader icon="📏" tint="bg-growth-tint" title={t("growth")} />
+      {weightPoints.length >= 2 ? (
+        <>
+          <p className="text-xs font-medium text-ink-soft">{t("weight")}</p>
+          <LineChart points={weightPoints} />
+        </>
+      ) : (
+        <p className="text-sm text-ink-soft">{t("needTwoPoints")}</p>
+      )}
+      {heightPoints.length >= 2 && (
+        <>
+          <p className="mt-2 text-xs font-medium text-ink-soft">{t("height")}</p>
+          <LineChart points={heightPoints} />
+        </>
+      )}
+    </section>
+  );
 
-      <section className={CARD}>
-        <SectionHeader icon="📏" tint="bg-growth-tint" title={t("addMeasurement")} />
-        <div className="space-y-3">
-          <div>
-            <label className={LABEL}>{t("date")}</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT} />
-          </div>
-          <div>
-            <label className={LABEL}>{t("weightKg")}</label>
-            <input type="number" inputMode="decimal" step="0.01" min="0"
-              value={weight} onChange={(e) => setWeight(e.target.value)} className={INPUT} />
-          </div>
-          <div>
-            <label className={LABEL}>{t("heightCm")}</label>
-            <input type="number" inputMode="decimal" step="0.1" min="0"
-              value={height} onChange={(e) => setHeight(e.target.value)} className={INPUT} />
-          </div>
-          <div>
-            <label className={LABEL}>{t("headCm")}</label>
-            <input type="number" inputMode="decimal" step="0.1" min="0"
-              value={head} onChange={(e) => setHead(e.target.value)} className={INPUT} />
-          </div>
-          <button onClick={saveMeasurement}
-            disabled={!(Number(weight) > 0) && !(Number(height) > 0) && !(Number(head) > 0)}
-            className={PRIMARY_BTN}>
-            {t("save")}
-          </button>
+  const addMeasurementSection = (
+    <section className={`${CARD}${mode === "web" ? " col-span-2" : ""}`}>
+      <SectionHeader icon="📏" tint="bg-growth-tint" title={t("addMeasurement")} />
+      <div className="space-y-3">
+        <div>
+          <label className={LABEL}>{t("date")}</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT} />
         </div>
-      </section>
+        <div>
+          <label className={LABEL}>{t("weightKg")}</label>
+          <input type="number" inputMode="decimal" step="0.01" min="0"
+            value={weight} onChange={(e) => setWeight(e.target.value)} className={INPUT} />
+        </div>
+        <div>
+          <label className={LABEL}>{t("heightCm")}</label>
+          <input type="number" inputMode="decimal" step="0.1" min="0"
+            value={height} onChange={(e) => setHeight(e.target.value)} className={INPUT} />
+        </div>
+        <div>
+          <label className={LABEL}>{t("headCm")}</label>
+          <input type="number" inputMode="decimal" step="0.1" min="0"
+            value={head} onChange={(e) => setHead(e.target.value)} className={INPUT} />
+        </div>
+        <button onClick={saveMeasurement}
+          disabled={!(Number(weight) > 0) && !(Number(height) > 0) && !(Number(head) > 0)}
+          className={PRIMARY_BTN}>
+          {t("save")}
+        </button>
+      </div>
+    </section>
+  );
+
+  return (
+    <main className={mode === "web" ? SCREEN_WEB : SCREEN_MOBILE}>
+      <h1 className={`text-2xl font-bold text-ink${mode === "web" ? " mb-6" : ""}`}>{t("title")}</h1>
+
+      {mode === "web" ? (
+        <div className="grid grid-cols-2 gap-4">
+          {chartSections}
+          {growthSection}
+          {addMeasurementSection}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {chartSections}
+          {growthSection}
+          {addMeasurementSection}
+        </div>
+      )}
     </main>
   );
 }

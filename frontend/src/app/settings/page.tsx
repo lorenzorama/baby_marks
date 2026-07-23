@@ -5,8 +5,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/components/Toast";
 import { useBaby, useSaveBaby } from "@/hooks/useBaby";
 import { useCaregiver } from "@/hooks/useCaregiver";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 
-const SCREEN = "space-y-6 p-5 pb-28";
+const SCREEN_MOBILE = "space-y-6 p-5 pb-28";
+const SCREEN_WEB = "mx-auto max-w-2xl p-6 pb-10 space-y-6";
 const CARD = "rounded-3xl bg-surface p-4 shadow-sm";
 const INPUT = "w-full rounded-2xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none focus:border-primary";
 const PRIMARY_BTN = "w-full rounded-2xl bg-primary py-3.5 text-base font-bold text-white disabled:opacity-50";
@@ -27,6 +29,7 @@ export default function SettingsPage() {
   const t = useTranslations("settings");
   const tc = useTranslations("caregiver");
   const locale = useLocale();
+  const { mode } = useLayoutMode();
   const { data: baby } = useBaby();
   const saveBaby = useSaveBaby();
   const [caregiver, setCaregiver] = useCaregiver();
@@ -52,7 +55,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className={SCREEN}>
+    <main className={mode === "web" ? SCREEN_WEB : SCREEN_MOBILE}>
       <h1 className="text-2xl font-bold text-ink">{t("title")}</h1>
 
       <section className={CARD}>

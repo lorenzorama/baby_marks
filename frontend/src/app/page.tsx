@@ -10,6 +10,7 @@ import EventItem from "@/components/EventItem";
 import EditEventSheet from "@/components/EditEventSheet";
 import { useRecentEvents } from "@/hooks/useEvents";
 import { useBaby } from "@/hooks/useBaby";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 import type { ApiEvent } from "@/lib/types";
 
 export default function HomePage() {
@@ -17,6 +18,7 @@ export default function HomePage() {
   const summaryT = useTranslations("summary");
   const tCg = useTranslations("caregiver");
   const locale = useLocale();
+  const { mode } = useLayoutMode();
   const { data: baby, isLoading: babyLoading } = useBaby();
   const { data } = useRecentEvents();
   const [editing, setEditing] = useState<ApiEvent | null>(null);
@@ -39,10 +41,15 @@ export default function HomePage() {
     );
   }
 
-  return (
-    <main className="space-y-6 p-5 pb-28">
+  const actionsColumn = (
+    <>
       <RunningTimers running={running} />
       <ActionGrid />
+    </>
+  );
+
+  const timelineColumn = (
+    <>
       <TimeSinceCards events={events} />
       <section>
         <h2 className="mb-2 text-base font-semibold text-ink">{t("timeline.today")}</h2>
@@ -59,6 +66,22 @@ export default function HomePage() {
           </div>
         )}
       </section>
+    </>
+  );
+
+  return (
+    <main className={mode === "web" ? "mx-auto max-w-5xl p-6 pb-10" : "space-y-6 p-5 pb-28"}>
+      {mode === "web" ? (
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-6">{actionsColumn}</div>
+          <div className="space-y-6">{timelineColumn}</div>
+        </div>
+      ) : (
+        <>
+          {actionsColumn}
+          {timelineColumn}
+        </>
+      )}
 
       <EditEventSheet event={editing} onClose={() => setEditing(null)} />
     </main>

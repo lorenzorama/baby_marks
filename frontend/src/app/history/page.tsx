@@ -7,6 +7,7 @@ import EventItem from "@/components/EventItem";
 import EditEventSheet from "@/components/EditEventSheet";
 import { api } from "@/lib/api-client";
 import { activityIcon, activityTint, activityAccentText } from "@/lib/activity";
+import { useLayoutMode } from "@/hooks/useLayoutMode";
 import type { ApiEvent, EventType } from "@/lib/types";
 
 const PAGE = 100;
@@ -18,6 +19,7 @@ export default function HistoryPage() {
   const tCg = useTranslations("caregiver");
   const tt = useTranslations("types");
   const locale = useLocale();
+  const { mode } = useLayoutMode();
   const [filter, setFilter] = useState<EventType | null>(null);
   const [editing, setEditing] = useState<ApiEvent | null>(null);
 
@@ -51,7 +53,7 @@ export default function HistoryPage() {
   }, [events, locale]);
 
   return (
-    <main className="space-y-6 p-5 pb-28">
+    <main className={mode === "web" ? "mx-auto max-w-2xl p-6 pb-10 space-y-6" : "space-y-6 p-5 pb-28"}>
       <h1 className="text-2xl font-bold">{t("history.title")}</h1>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
