@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from .db import close_pool, run_migrations
 from .errors import ApiError
+from .mcp import oauth as mcp_oauth
 from .routes import auth, baby, events, measurements, stats
 
 
@@ -45,3 +46,4 @@ app.include_router(baby.router)
 app.include_router(events.router)
 app.include_router(measurements.router)
 app.include_router(stats.router)
+app.include_router(mcp_oauth.router)

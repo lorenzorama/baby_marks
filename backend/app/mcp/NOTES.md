@@ -331,3 +331,98 @@ Note: `httpx.ASGITransport` does **not** trigger ASGI lifespan
 startup/shutdown by itself (see item 3) — in a real deployment Uvicorn does
 this; in tests, drive it manually with `async with
 app.router.lifespan_context(app): ...` around the `Client` usage.
+
+## 6. Task 4: OAuth endpoints — mechanism actually used, and why it deviated
+
+Section 4's recommendation was mechanism **(a)**: subclass
+`fastmcp.server.auth.OAuthProvider` / implement `OAuthAuthorizationServerProvider`
+directly. Task 4 tried that first and hit two **structural** mismatches
+against this task's fixed external contract, not incidental ones — so it
+hybridized down to mechanism **(c)** (plain FastAPI routes + a standalone
+bearer verifier) for the whole OAuth surface, per the brief's explicit
+escape hatch. Verified against the installed `mcp` 1.28.1 / `fastmcp` 3.4.4
+source:
+
+1. **`/authorize` can't be our login page.** `mcp.server.auth.routes.
+   create_auth_routes` wires *one* handler
+   (`mcp.server.auth.handlers.authorize.AuthorizationHandler.handle`) to both
+   GET and POST on `/authorize`. For both methods it validates the request
+   against a fixed `AuthorizationRequest` Pydantic model
+   (`client_id`/`redirect_uri`/`response_type`/`code_challenge`/...) and then
+   *always* either returns a JSON error or does
+   `RedirectResponse(url=await provider.authorize(client, params))` — i.e. it
+   assumes `authorize()` immediately knows where to redirect (the classic
+   "redirect out to a third-party IdP" shape documented in the protocol
+   docstring). There is no hook to render an HTML form on GET, and POST is
+   parsed with the *same* `AuthorizationRequest` schema, so a `secret` form
+   field has nowhere to go. Our contract — GET renders a secret-gated HTML
+   form, POST carries a `secret` field and either re-renders (wrong secret)
+   or 302s with a code (right secret) — cannot be expressed by overriding
+   `provider.authorize()`; it would require replacing the SDK's route
+   entirely, at which point mechanism (a) buys nothing for this endpoint.
+2. **The token endpoint's error status is wrong for our contract.**
+   `fastmcp.server.auth.auth.OAuthProvider.get_routes()` explicitly replaces
+   the SDK's `/token` route with its own `TokenHandler`
+   (`fastmcp/server/auth/auth.py`), whose `handle()` docstring says exactly:
+   "the MCP spec requires ... Invalid or expired tokens MUST receive a HTTP
+   401 response" — it rewrites `400 {"error":"invalid_grant"}` responses into
+   `401`. This task's brief fixes the contract the other way: *all* token
+   failures, including `invalid_grant`, must stay at 400. Using fastmcp's
+   `OAuthProvider` for `/token` would mean fighting its own handler
+   replacement to get back to spec-required-here behavior.
+
+DCR (`/register`) is the one piece that *would* have fit mechanism (a)
+cleanly (`mcp.server.auth.handlers.register.RegistrationHandler` already
+returns `201` with the right client-info shape, and the redirect-origin
+allowlist could have lived in `register_client()` raising `RegistrationError`).
+It was implemented as a plain route anyway for consistency — one storage
+model, one file, no split between "this endpoint goes through the SDK
+provider, these three don't."
+
+**What was built instead (mechanism (c)):** `backend/app/mcp/oauth.py` is a
+self-contained `fastapi.APIRouter`, included directly on the main `app` in
+`backend/app/main.py` (`app.include_router(mcp_oauth.router)`), with no
+FastMCP involvement at all. It reuses Task 3's `app/mcp/tokens.py`
+(`mint_access_token`/`verify_access_token`/`new_refresh_token`/
+`hash_refresh_token`) for the actual JWT/refresh-token mechanics, and
+persists to the `mcp_clients` / `mcp_refresh_tokens` tables from migration
+`0002_mcp.sql` via `app/db.py`'s `get_pool()`. Authorization codes are a
+module-level in-memory dict (`_AUTH_CODES`), single-use, 10-minute TTL —
+acceptable for a single-user local server per the brief.
+
+**Endpoint paths** (all mounted at the FastAPI app root, no `/api` prefix —
+these are OAuth-spec paths relative to `MCP_PUBLIC_URL`, not app API routes):
+
+| Purpose | Method | Path |
+|---|---|---|
+| AS metadata (RFC 8414) | GET | `/.well-known/oauth-authorization-server` (+ `/mcp` suffix alias) |
+| Protected-resource metadata (RFC 9728) | GET | `/.well-known/oauth-protected-resource` (+ `/mcp` suffix alias) |
+| Dynamic client registration (RFC 7591) | POST | `/register` |
+| Authorize (HTML form / code issuance) | GET, POST | `/authorize` |
+| Token (auth-code exchange + refresh rotation) | POST | `/token` |
+
+The `/mcp`-suffixed well-known aliases were added pre-emptively (cheap,
+mirrors the RFC 8414 §3.1 / RFC 9728 §3.1 path-aware discovery pattern
+FastMCP itself implements) in case claude.ai probes them once Task 5 mounts
+the MCP endpoint at `/mcp`; both aliases serve byte-identical JSON to the
+un-suffixed routes.
+
+**Produced for Task 5:** `verify_bearer(request: Request) -> dict` in this
+same file — `from app.mcp.oauth import verify_bearer`. It reads the
+`Authorization: Bearer <token>` header, verifies it with
+`verify_access_token(token, mcp_jwt_secret())`, and returns the claims dict
+on success. On any failure (missing header, wrong scheme, expired/invalid
+token) it raises `fastapi.HTTPException(401, ...)` with a `WWW-Authenticate:
+Bearer resource_metadata="<MCP_PUBLIC_URL>/.well-known/oauth-protected-resource"`
+header, per RFC 9728 §5.1. Task 5 can use it directly as a FastAPI
+dependency, or call it manually inside FastMCP tool wiring if bearer
+extraction needs to happen inside the mounted MCP app instead of at the
+FastAPI layer — the MCP tool app itself was deliberately **not** mounted in
+Task 4 (per the brief, that's Task 5's job); only the AS routes above are
+live on `app` as of this task.
+
+Tests: `backend/tests/test_mcp_oauth.py`, 15 cases (3 pure-shape metadata
+tests ungated, 12 DB-gated on `BM_TEST_DATABASE_URL` exactly like
+`tests/test_api.py`). Full suite: 41 passed + 20 skipped without a test DB,
+61 passed with one (baseline 38 passed + 8 skipped, so all 15 new cases
+land cleanly on top with zero regressions).
