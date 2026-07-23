@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "asyncpg>=0.30",
     "pydantic>=2.9",
+    "fastmcp>=3.4.4",
 ]
 
 [dependency-groups]
