@@ -20,15 +20,15 @@ export default function RunningTimers({ running }: { running: ApiEvent[] }) {
         const label = e.type === "feed" ? t("feed") : e.type === "sleep" ? t("sleep") : t("pump");
         const side = (e.details as { side?: string }).side;
         return (
-          <div key={e.id} className={`flex items-center gap-4 rounded-3xl p-5 ${activityTint[e.type]}`}>
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-surface text-3xl">
+          <div key={e.id} className={`flex items-center gap-3 rounded-3xl p-5 ${activityTint[e.type]}`}>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-2xl">
               {activityIcon[e.type] ?? "⏱"}
             </span>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-ink-soft">
                 {label}{side ? ` · ${ts(side)}` : ""}
               </div>
-              <div className="font-mono text-5xl font-bold tabular-nums">{formatClock(secs)}</div>
+              <div className="truncate font-mono text-3xl font-bold tabular-nums">{formatClock(secs)}</div>
             </div>
             <button
               onClick={() => update.mutate({ id: e.id, endedAt: new Date().toISOString() })}
