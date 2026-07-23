@@ -1,9 +1,12 @@
 """Daily aggregation of events, a direct port of the former TypeScript lib/stats.ts."""
 
 import math
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
+
+from app.mcp.summaries import merge_intervals
 
 DAY = timedelta(days=1)
 
@@ -57,6 +60,11 @@ def aggregate_daily(
         key = _day_key(now - i * DAY, tz_offset_minutes)
         by_day[key] = _empty_day(key)
 
+    # Sleep intervals are collected per local day (clipped to day boundaries)
+    # and merged (union) below, rather than summed directly, so overlapping
+    # sleep events don't double-count a day's total.
+    sleep_intervals_by_day: dict[str, list[tuple[datetime, datetime]]] = defaultdict(list)
+
     for e in events:
         details = e.details or {}
         is_breast = e.type == "feed" and details.get("method") == "breast"
@@ -68,11 +76,15 @@ def aggregate_daily(
             while cursor < end:
                 boundary = _next_local_midnight(cursor, tz_offset_minutes)
                 slice_end = min(end, boundary)
-                minutes = (slice_end - cursor).total_seconds() / 60
-                bucket = by_day.get(_day_key(cursor, tz_offset_minutes))
-                if bucket is not None:
-                    key = "sleepMinutes" if e.type == "sleep" else "breastMinutes"
-                    bucket[key] += minutes
+                day_key = _day_key(cursor, tz_offset_minutes)
+                if e.type == "sleep":
+                    if day_key in by_day:
+                        sleep_intervals_by_day[day_key].append((cursor, slice_end))
+                else:
+                    minutes = (slice_end - cursor).total_seconds() / 60
+                    bucket = by_day.get(day_key)
+                    if bucket is not None:
+                        bucket["breastMinutes"] += minutes
                 cursor = slice_end
 
         # Counts/volumes attributed to the start day.
@@ -100,6 +112,11 @@ def aggregate_daily(
             )
         elif e.type == "medicine":
             bucket["medicineCount"] += 1
+
+    for day_key, intervals in sleep_intervals_by_day.items():
+        bucket = by_day[day_key]
+        merged = merge_intervals(intervals)
+        bucket["sleepMinutes"] = sum((e - s).total_seconds() / 60 for s, e in merged)
 
     out = list(by_day.values())
     for d in out:

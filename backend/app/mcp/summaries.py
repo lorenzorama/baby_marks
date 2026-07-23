@@ -71,11 +71,36 @@ def _duration_minutes(start: datetime, end: datetime) -> float:
     return (end - start).total_seconds() / 60
 
 
+def merge_intervals(intervals: list[tuple[datetime, datetime]]) -> list[tuple[datetime, datetime]]:
+    """Union of possibly-overlapping/touching intervals.
+
+    Sorts by start, then merges any interval whose start is <= the current
+    merged interval's end (so touching intervals, e.g. 10:00-11:00 and
+    11:00-12:00, merge into one). Pure, shared by app/stats.py and this
+    module so both sleep-aggregation sites use the same union logic.
+    """
+    if not intervals:
+        return []
+    ordered = sorted(intervals, key=lambda iv: iv[0])
+    merged = [ordered[0]]
+    for start, end in ordered[1:]:
+        last_start, last_end = merged[-1]
+        if start <= last_end:
+            if end > last_end:
+                merged[-1] = (last_start, end)
+        else:
+            merged.append((start, end))
+    return merged
+
+
 def _sleep_blocks(
     events: list[dict[str, Any]], day_start: datetime, day_end: datetime, now: datetime
 ) -> list[dict[str, Any]]:
-    """Clipped, chronological sleep blocks (raw datetimes, not yet formatted)."""
-    blocks: list[dict[str, Any]] = []
+    """Merged (union), chronological sleep blocks for the day (raw datetimes,
+    not yet formatted). Overlapping/touching per-event clipped intervals are
+    merged before being returned, so totals/counts never double-count."""
+    running_still_at_now: set[tuple[datetime, datetime]] = set()
+    clipped_intervals: list[tuple[datetime, datetime]] = []
     for e in events:
         if e["type"] != "sleep":
             continue
@@ -85,15 +110,26 @@ def _sleep_blocks(
         if clipped is None:
             continue
         s, clipped_end = clipped
+        clipped_intervals.append((s, clipped_end))
+        if is_running and clipped_end == now:
+            running_still_at_now.add((s, clipped_end))
+
+    merged = merge_intervals(clipped_intervals)
+    blocks: list[dict[str, Any]] = []
+    for s, e_ in merged:
+        # A merged block is "still running" iff its end is exactly `now` and
+        # it absorbed at least one running event's clipped end.
+        still_running = e_ == now and any(
+            r_end == e_ and r_start >= s for r_start, r_end in running_still_at_now
+        )
         blocks.append(
             {
                 "start": s,
-                "end": clipped_end,
-                "still_running": is_running and clipped_end == now,
-                "minutes": _round(_duration_minutes(s, clipped_end)),
+                "end": e_,
+                "still_running": still_running,
+                "minutes": _round(_duration_minutes(s, e_)),
             }
         )
-    blocks.sort(key=lambda b: b["start"])
     return blocks
 
 

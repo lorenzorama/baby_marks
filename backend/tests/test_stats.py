@@ -86,3 +86,45 @@ def test_ignores_events_outside_window():
         NOW,
     )
     assert all(d["diaperWet"] == 0 for d in out)
+
+
+def test_overlapping_sleep_events_are_merged_not_summed():
+    # 10:00-12:00 and 11:00-13:00 overlap by 1h -> union is 180 min, not 240.
+    out = aggregate_daily(
+        [
+            ev("sleep", "2026-07-15T10:00:00Z", "2026-07-15T12:00:00Z"),
+            ev("sleep", "2026-07-15T11:00:00Z", "2026-07-15T13:00:00Z"),
+        ],
+        1,
+        0,
+        NOW,
+    )
+    assert by_date(out, "2026-07-15")["sleepMinutes"] == 180
+
+
+def test_monster_multiday_sleep_plus_real_blocks_caps_at_day_length():
+    out = aggregate_daily(
+        [
+            ev("sleep", "2026-07-13T12:00:00Z", "2026-07-16T12:00:00Z"),
+            ev("sleep", "2026-07-14T02:00:00Z", "2026-07-14T04:00:00Z"),
+            ev("sleep", "2026-07-14T20:00:00Z", "2026-07-14T21:00:00Z"),
+        ],
+        7,
+        0,
+        NOW,
+    )
+    assert by_date(out, "2026-07-14")["sleepMinutes"] == 1440
+
+
+def test_sleep_minutes_never_exceed_day_length_for_any_day():
+    out = aggregate_daily(
+        [
+            ev("sleep", "2026-07-13T12:00:00Z", "2026-07-16T12:00:00Z"),
+            ev("sleep", "2026-07-14T02:00:00Z", "2026-07-14T04:00:00Z"),
+            ev("sleep", "2026-07-14T20:00:00Z", "2026-07-14T21:00:00Z"),
+        ],
+        7,
+        0,
+        NOW,
+    )
+    assert all(d["sleepMinutes"] <= 1440 for d in out)

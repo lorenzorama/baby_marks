@@ -258,3 +258,79 @@ def test_list_diapers_chronological_with_time_and_kind():
     assert diapers[1]["kind"] == "dirty"
     assert "iso" in diapers[0]["time"]
     assert "local" in diapers[0]["time"]
+
+
+# --- 11. overlapping sleep intervals must be merged (union, not sum) ------
+
+
+def test_monster_block_plus_real_sleep_caps_at_1440_and_merges_to_one_block():
+    # A 3-day monster sleep event spanning 2026-07-21..2026-07-24, plus two
+    # normal sleep events fully inside 2026-07-22 that overlap the monster.
+    events = [
+        ev("sleep", "2026-07-21T12:00:00", "2026-07-24T12:00:00"),
+        ev("sleep", "2026-07-22T02:00:00", "2026-07-22T04:00:00"),
+        ev("sleep", "2026-07-22T20:00:00", "2026-07-22T21:00:00"),
+    ]
+
+    summary = summarize_day(events, [], "2026-07-22", "UTC", NOW, None)
+
+    assert summary["sleep"]["total_minutes"] == 1440
+    assert len(summary["sleep"]["blocks"]) == 1
+    assert summary["sleep"]["longest_block_minutes"] == 1440
+
+
+def test_sleep_stats_monster_day_caps_at_1440():
+    events = [
+        ev("sleep", "2026-07-21T12:00:00", "2026-07-24T12:00:00"),
+        ev("sleep", "2026-07-22T02:00:00", "2026-07-22T04:00:00"),
+        ev("sleep", "2026-07-22T20:00:00", "2026-07-22T21:00:00"),
+    ]
+
+    result = sleep_stats(events, "2026-07-21", "2026-07-24", "UTC", NOW)
+
+    day22 = next(d for d in result["days"] if d["date"] == "2026-07-22")
+    assert day22["total_minutes"] == 1440
+    assert day22["block_count"] == 1
+    assert day22["longest_block_minutes"] == 1440
+
+
+def test_simple_overlap_merges_into_one_block_of_union_length():
+    # 10:00-12:00 and 11:00-13:00 overlap by 1h -> union is 10:00-13:00 (180 min).
+    events = [
+        ev("sleep", "2026-07-23T10:00:00", "2026-07-23T12:00:00"),
+        ev("sleep", "2026-07-23T11:00:00", "2026-07-23T13:00:00"),
+    ]
+
+    summary = summarize_day(events, [], "2026-07-23", "UTC", NOW, None)
+
+    assert summary["sleep"]["total_minutes"] == 180
+    assert len(summary["sleep"]["blocks"]) == 1
+    assert summary["sleep"]["blocks"][0]["minutes"] == 180
+
+
+def test_touching_blocks_merge_into_one():
+    # 10:00-11:00 and 11:00-12:00 touch exactly at the boundary -> merged.
+    events = [
+        ev("sleep", "2026-07-23T10:00:00", "2026-07-23T11:00:00"),
+        ev("sleep", "2026-07-23T11:00:00", "2026-07-23T12:00:00"),
+    ]
+
+    summary = summarize_day(events, [], "2026-07-23", "UTC", NOW, None)
+
+    assert summary["sleep"]["total_minutes"] == 120
+    assert len(summary["sleep"]["blocks"]) == 1
+    assert summary["sleep"]["blocks"][0]["minutes"] == 120
+
+
+def test_disjoint_blocks_stay_separate_regression():
+    # Existing non-overlapping scenario must remain unaffected by the merge.
+    events = [
+        ev("sleep", "2026-07-23T01:00:00", "2026-07-23T02:00:00"),
+        ev("sleep", "2026-07-23T10:00:00", "2026-07-23T11:00:00"),
+    ]
+
+    summary = summarize_day(events, [], "2026-07-23", "UTC", NOW, None)
+
+    assert summary["sleep"]["total_minutes"] == 120
+    assert len(summary["sleep"]["blocks"]) == 2
+    assert summary["sleep"]["longest_block_minutes"] == 60
