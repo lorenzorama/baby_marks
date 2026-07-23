@@ -173,6 +173,65 @@ async def test_dcr_rejects_mixed_good_and_evil_redirects(client):
     assert res.json()["error"] == "invalid_redirect_uri"
 
 
+async def test_dcr_rejects_oversized_body(client):
+    # Pad client_name with valid-looking data to push the JSON body over the
+    # 8KiB cap without tripping any other validation first.
+    res = await client.post(
+        "/register",
+        json={
+            "redirect_uris": ["https://claude.ai/callback"],
+            "client_name": "x" * 9000,
+        },
+    )
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid_request"
+
+
+async def test_dcr_rejects_too_many_redirect_uris(client):
+    res = await client.post(
+        "/register",
+        json={"redirect_uris": [f"https://claude.ai/callback{i}" for i in range(6)]},
+    )
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid_request"
+
+
+async def test_dcr_rejects_client_name_too_long(client):
+    res = await client.post(
+        "/register",
+        json={
+            "redirect_uris": ["https://claude.ai/callback"],
+            "client_name": "x" * 201,
+        },
+    )
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid_request"
+
+
+async def test_dcr_prunes_stale_unused_clients(client):
+    from datetime import datetime, timedelta, timezone
+
+    from app import db as db_module
+
+    pool = await db_module.get_pool()
+    old_client_id = "stale-client-id"
+    await pool.execute(
+        "INSERT INTO mcp_clients (client_id, redirect_uris, client_name, created_at) "
+        "VALUES ($1, $2, $3, $4)",
+        old_client_id,
+        ["https://claude.ai/callback"],
+        "Old Client",
+        datetime.now(timezone.utc) - timedelta(days=31),
+    )
+
+    await register_client(client)
+
+    row = await pool.fetchrow(
+        "SELECT client_id FROM mcp_clients WHERE client_id=$1", old_client_id
+    )
+    assert row is None
+
+
 async def test_authorize_get_renders_form(client):
     registered = await register_client(client)
     verifier, challenge = pkce_pair()
@@ -413,6 +472,56 @@ async def test_refresh_rotation_and_old_refresh_dies(client):
         "/token", data={"grant_type": "refresh_token", "refresh_token": new_refresh}
     )
     assert again_res.status_code == 200, again_res.text
+
+
+async def test_rotating_jwt_secret_revokes_refresh_chain(client, monkeypatch):
+    """Regression for keyed refresh-token hashing (app/mcp/tokens.py
+    `hash_refresh_token`): with the old unkeyed sha256, rotating
+    MCP_JWT_SECRET only stopped *new* access-token verification -- the stored
+    `token_hash` was invariant under the secret, so an already-connected
+    client could keep exchanging its refresh token for fresh access tokens
+    forever. With the keyed hash, rotating the secret makes the stored hash
+    unrecoverable from the (unrotated) refresh token the client still holds,
+    so the very next refresh attempt must fail closed with 400 invalid_grant.
+    """
+    registered = await register_client(client)
+    verifier, challenge = pkce_pair()
+    redirect_uri = "https://claude.ai/callback"
+
+    form = {
+        "client_id": registered["client_id"],
+        "redirect_uri": redirect_uri,
+        "state": "s",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "response_type": "code",
+        "secret": MCP_ACCESS_SECRET,
+    }
+    auth_res = await client.post("/authorize", data=form)
+    code = parse_qs(urlsplit(auth_res.headers["location"]).query)["code"][0]
+
+    token_res = await client.post(
+        "/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": verifier,
+            "client_id": registered["client_id"],
+            "redirect_uri": redirect_uri,
+        },
+    )
+    assert token_res.status_code == 200, token_res.text
+    refresh_token = token_res.json()["refresh_token"]
+
+    # Rotate MCP_JWT_SECRET to a different value, as an operator would to
+    # revoke connector access.
+    monkeypatch.setenv("MCP_JWT_SECRET", "rotated-jwt-secret")
+
+    rotated_res = await client.post(
+        "/token", data={"grant_type": "refresh_token", "refresh_token": refresh_token}
+    )
+    assert rotated_res.status_code == 400
+    assert rotated_res.json()["error"] == "invalid_grant"
 
 
 async def test_token_malformed_request_is_invalid_request(client):

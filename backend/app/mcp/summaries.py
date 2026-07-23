@@ -225,14 +225,15 @@ def summarize_day(
     }
 
 
-def sleep_stats(
-    events: list[dict[str, Any]],
-    start_date: str,
-    end_date: str,
-    tz_name: str,
-    now: datetime,
-) -> dict[str, Any]:
-    """Per-day sleep totals + period averages, per get_sleep_stats."""
+def validate_sleep_stats_range(start_date: str, end_date: str, tz_name: str) -> None:
+    """Validate a `get_sleep_stats` date range + timezone, raising `ValueError`
+    on any problem (bad date, bad tz, inverted range, span over
+    `MAX_SLEEP_STATS_DAYS`).
+
+    Split out from `sleep_stats` so callers (the MCP tool) can validate
+    *before* fetching anything from the DB -- there's no reason to run a
+    query for a range the tool is about to reject anyway.
+    """
     start = _parse_date(start_date)
     end = _parse_date(end_date)
     _zone(tz_name)  # validate tz eagerly for a consistent error regardless of range
@@ -241,6 +242,20 @@ def sleep_stats(
     span_days = (end - start).days
     if span_days > MAX_SLEEP_STATS_DAYS:
         raise ValueError(f"date range exceeds {MAX_SLEEP_STATS_DAYS} days")
+
+
+def sleep_stats(
+    events: list[dict[str, Any]],
+    start_date: str,
+    end_date: str,
+    tz_name: str,
+    now: datetime,
+) -> dict[str, Any]:
+    """Per-day sleep totals + period averages, per get_sleep_stats."""
+    validate_sleep_stats_range(start_date, end_date, tz_name)
+    start = _parse_date(start_date)
+    end = _parse_date(end_date)
+    span_days = (end - start).days
 
     sleep_events = [e for e in events if e["type"] == "sleep"]
 

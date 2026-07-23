@@ -49,6 +49,16 @@ AUTH_CODE_TTL_SECONDS = 600
 ACCESS_TOKEN_TTL_SECONDS = 3600
 REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 3600
 
+# DCR is an unauthenticated public endpoint (RFC 7591 open registration), so
+# it needs its own bounds independent of anything a client claims about
+# itself -- otherwise a single POST can wedge an arbitrarily large JSON body
+# or an unbounded number/size of redirect_uris into `mcp_clients`.
+MAX_REGISTER_BODY_BYTES = 8192
+MAX_CLIENT_NAME_LENGTH = 200
+MAX_REDIRECT_URIS = 5
+MAX_REDIRECT_URI_LENGTH = 512
+STALE_CLIENT_AGE = timedelta(days=30)
+
 # Single-use authorization codes. In-memory is fine: this is a single-user
 # local server, codes live at most 10 minutes, and a restart invalidates any
 # in-flight authorize step, which is an acceptable failure mode (the client
@@ -76,18 +86,21 @@ def _pkce_challenge_from_verifier(verifier: str) -> str:
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
 
 
-def _render_authorize_form(params: dict, error: str | None = None) -> str:
+def _render_authorize_form(
+    params: dict, client_name: str | None = None, error: str | None = None
+) -> str:
     hidden = "".join(
         f'<input type="hidden" name="{key}" value="{html.escape(str(params.get(key, "")))}">\n'
         for key in _HIDDEN_FIELDS
         if params.get(key) is not None
     )
     error_html = f'<p class="error">{html.escape(error)}</p>' if error else ""
+    heading = f"Authorizing {html.escape(client_name)}" if client_name else "Authorize MCP client"
     return f"""<!doctype html>
 <html>
 <head><title>Authorize MCP client</title></head>
 <body>
-<h1>Authorize MCP client</h1>
+<h1>{heading}</h1>
 {error_html}
 <form method="post" action="/authorize">
 {hidden}
@@ -152,6 +165,20 @@ async def oauth_protected_resource_metadata_mcp() -> JSONResponse:
 
 @router.post("/register")
 async def register_client(request: Request) -> JSONResponse:
+    # Reject oversized bodies before even touching them. Content-Length is
+    # attacker-supplied but Starlette/uvicorn already require it (or chunked
+    # transfer, which this check doesn't see) -- either way, a JSON body this
+    # large can only be padding, since every real field below is capped far
+    # below 8KiB.
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            too_big = int(content_length) > MAX_REGISTER_BODY_BYTES
+        except ValueError:
+            too_big = False
+        if too_big:
+            raise ApiError(400, "invalid_request", error_description="request body too large")
+
     try:
         body = await request.json()
     except Exception as exc:  # malformed JSON body
@@ -165,7 +192,19 @@ async def register_client(request: Request) -> JSONResponse:
     ):
         raise ApiError(400, "invalid_request", error_description="redirect_uris is required")
 
+    if len(redirect_uris) > MAX_REDIRECT_URIS:
+        raise ApiError(
+            400,
+            "invalid_request",
+            error_description=f"too many redirect_uris (max {MAX_REDIRECT_URIS})",
+        )
     for uri in redirect_uris:
+        if len(uri) > MAX_REDIRECT_URI_LENGTH:
+            raise ApiError(
+                400,
+                "invalid_request",
+                error_description=f"redirect_uri exceeds {MAX_REDIRECT_URI_LENGTH} characters",
+            )
         if not _redirect_origin_allowed(uri):
             raise ApiError(
                 400,
@@ -173,10 +212,32 @@ async def register_client(request: Request) -> JSONResponse:
                 error_description=f"redirect_uri origin not allowed: {uri}",
             )
 
-    client_id = secrets.token_urlsafe(16)
     client_name = body.get("client_name") if isinstance(body.get("client_name"), str) else None
+    if client_name is not None and len(client_name) > MAX_CLIENT_NAME_LENGTH:
+        raise ApiError(
+            400,
+            "invalid_request",
+            error_description=f"client_name exceeds {MAX_CLIENT_NAME_LENGTH} characters",
+        )
+
+    client_id = secrets.token_urlsafe(16)
 
     pool = await get_pool()
+    # Prune stale, never-used registrations before inserting the new one:
+    # DCR is open (no auth), so abandoned/probing registrations otherwise
+    # accumulate in `mcp_clients` forever. Only rows with zero refresh tokens
+    # are eligible -- a client that completed a flow and is still holding a
+    # refresh token must never be pruned out from under it.
+    await pool.execute(
+        """
+        DELETE FROM mcp_clients c
+        WHERE c.created_at < now() - $1::interval
+          AND NOT EXISTS (
+              SELECT 1 FROM mcp_refresh_tokens rt WHERE rt.client_id = c.client_id
+          )
+        """,
+        STALE_CLIENT_AGE,
+    )
     await pool.execute(
         "INSERT INTO mcp_clients (client_id, redirect_uris, client_name) VALUES ($1, $2, $3)",
         client_id,
@@ -202,10 +263,10 @@ async def register_client(request: Request) -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 
-async def _load_and_validate_client(client_id: str, redirect_uri: str) -> None:
+async def _load_and_validate_client(client_id: str, redirect_uri: str) -> str | None:
     pool = await get_pool()
     row = await pool.fetchrow(
-        "SELECT redirect_uris FROM mcp_clients WHERE client_id=$1", client_id
+        "SELECT redirect_uris, client_name FROM mcp_clients WHERE client_id=$1", client_id
     )
     if row is None:
         raise ApiError(400, "invalid_client", error_description="unknown client_id")
@@ -215,6 +276,7 @@ async def _load_and_validate_client(client_id: str, redirect_uri: str) -> None:
     # not just at registration time.
     if not _redirect_origin_allowed(redirect_uri):
         raise ApiError(400, "invalid_request", error_description="redirect_uri origin not allowed")
+    return row["client_name"]
 
 
 @router.api_route("/authorize", methods=["GET", "POST"])
@@ -238,18 +300,29 @@ async def authorize(request: Request):
     if code_challenge_method != "S256":
         raise ApiError(400, "invalid_request", error_description="code_challenge_method must be 'S256'")
 
-    await _load_and_validate_client(client_id, redirect_uri)
+    client_name = await _load_and_validate_client(client_id, redirect_uri)
 
     no_store = {"Cache-Control": "no-store"}  # OAuth 2.1 authorize response hygiene
 
     if request.method == "GET":
-        return HTMLResponse(_render_authorize_form(params), headers=no_store)
+        return HTMLResponse(_render_authorize_form(params, client_name=client_name), headers=no_store)
 
     supplied_secret = params.get("secret") or ""
     expected_secret = mcp_access_secret()
     if not hmac.compare_digest(supplied_secret.encode(), expected_secret.encode()):
         await asyncio.sleep(0.5)  # brute-force damper, same convention as app/routes/auth.py
-        return HTMLResponse(_render_authorize_form(params, error="Incorrect secret."), headers=no_store)
+        return HTMLResponse(
+            _render_authorize_form(params, client_name=client_name, error="Incorrect secret."),
+            headers=no_store,
+        )
+
+    # Sweep expired codes before inserting a new one -- bounds the in-memory
+    # dict's size for a long-running process instead of only ever growing it
+    # (codes that are exchanged are already popped in
+    # `_exchange_authorization_code`; this catches the ones nobody redeemed).
+    now_ts = time.time()
+    for expired_code in [c for c, data in _AUTH_CODES.items() if data["expires"] < now_ts]:
+        del _AUTH_CODES[expired_code]
 
     code = secrets.token_urlsafe(32)
     _AUTH_CODES[code] = {
@@ -258,7 +331,8 @@ async def authorize(request: Request):
         "code_challenge": code_challenge,
         "expires": time.time() + AUTH_CODE_TTL_SECONDS,
     }
-    location = f"{redirect_uri}?{urlencode({'code': code, 'state': state})}"
+    separator = "&" if "?" in redirect_uri else "?"
+    location = f"{redirect_uri}{separator}{urlencode({'code': code, 'state': state})}"
     return RedirectResponse(url=location, status_code=302, headers=no_store)
 
 
@@ -275,7 +349,7 @@ async def _issue_token_pair(client_id: str) -> JSONResponse:
     pool = await get_pool()
     await pool.execute(
         "INSERT INTO mcp_refresh_tokens (token_hash, client_id, expires_at) VALUES ($1, $2, $3)",
-        hash_refresh_token(refresh_token),
+        hash_refresh_token(refresh_token, mcp_jwt_secret()),
         client_id,
         expires_at,
     )
@@ -321,7 +395,7 @@ async def _exchange_refresh_token(form: dict) -> JSONResponse:
     if not refresh_token:
         raise ApiError(400, "invalid_request")
 
-    token_hash = hash_refresh_token(refresh_token)
+    token_hash = hash_refresh_token(refresh_token, mcp_jwt_secret())
     pool = await get_pool()
 
     # Atomic check-and-delete: a single DELETE ... RETURNING statement means
@@ -387,10 +461,22 @@ async def verify_bearer(request: Request) -> dict:
             headers={"WWW-Authenticate": _www_authenticate_header()},
         )
     try:
-        return verify_access_token(token_value, mcp_jwt_secret())
+        claims = verify_access_token(token_value, mcp_jwt_secret())
     except TokenError as exc:
         raise HTTPException(
             401,
             detail=str(exc),
             headers={"WWW-Authenticate": _www_authenticate_header()},
         ) from exc
+
+    # Defense in depth: this server only ever mints tokens with scope "mcp"
+    # (see `mint_access_token`), so a token with any other/missing scope is
+    # not one of ours -- reject it rather than trusting claims wholesale.
+    if claims.get("scope") != "mcp":
+        raise HTTPException(
+            401,
+            detail="invalid scope",
+            headers={"WWW-Authenticate": _www_authenticate_header()},
+        )
+
+    return claims

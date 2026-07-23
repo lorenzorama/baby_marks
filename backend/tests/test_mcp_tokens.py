@@ -28,4 +28,12 @@ def test_garbage_rejected():
 def test_refresh_token_entropy_and_hash():
     t1, t2 = new_refresh_token(), new_refresh_token()
     assert t1 != t2 and len(t1) >= 43
-    assert hash_refresh_token(t1) != hash_refresh_token(t2) and len(hash_refresh_token(t1)) == 64
+    assert hash_refresh_token(t1, SECRET) != hash_refresh_token(t2, SECRET)
+    assert len(hash_refresh_token(t1, SECRET)) == 64
+
+def test_refresh_token_hash_is_keyed_by_secret():
+    # Same token, different secrets -> different hash. This is the property
+    # that makes rotating MCP_JWT_SECRET revoke stored refresh-token hashes:
+    # an unkeyed hash would be invariant under secret rotation.
+    token = new_refresh_token()
+    assert hash_refresh_token(token, SECRET) != hash_refresh_token(token, "other-secret")

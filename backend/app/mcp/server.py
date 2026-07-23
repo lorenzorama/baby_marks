@@ -41,6 +41,7 @@ from .summaries import (
     list_feedings,
     sleep_stats,
     summarize_day,
+    validate_sleep_stats_range,
 )
 
 DEFAULT_TZ = mcp_default_timezone()
@@ -84,6 +85,10 @@ async def get_sleep_stats(
         timezone: IANA timezone name the dates are interpreted in.
     """
     try:
+        # Validate the range (bad date, bad tz, inverted range, >90-day span)
+        # before touching the DB at all -- no reason to run a query for a
+        # range this call is about to reject anyway.
+        validate_sleep_stats_range(start_date, end_date, timezone)
         range_start, _ = day_bounds(start_date, timezone)
         _, range_end = day_bounds(end_date, timezone)
         pool = await get_pool()
@@ -141,6 +146,8 @@ async def get_measurements(limit: int = 20) -> list[dict[str, Any]]:
     Args:
         limit: Maximum number of most-recent measurements to return.
     """
+    if limit < 0 or limit > 500:
+        raise ToolError("limit must be between 0 and 500")
     pool = await get_pool()
     rows = await fetch_all_measurements(pool, limit)
     rows.reverse()  # fetch_all_measurements is most-recent-first; return ascending (oldest first)

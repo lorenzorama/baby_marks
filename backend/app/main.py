@@ -40,8 +40,21 @@ class BearerGate:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        if scope["type"] == "lifespan":
+            # Not a request at all -- this is the startup/shutdown event the
+            # mounted FastMCP app's session manager needs (see `lifespan`
+            # below); there is no bearer token to check.
             await self.app(scope, receive, send)
+            return
+
+        if scope["type"] != "http":
+            # Any other ASGI scope type (websocket, today; whatever a future
+            # transport adds) must be denied outright rather than passed
+            # through to the mounted app unauthenticated -- silently
+            # delegating here would bypass the bearer gate entirely for that
+            # scope type.
+            if scope["type"] == "websocket":
+                await send({"type": "websocket.close", "code": 1008})
             return
 
         request = Request(scope, receive=receive)

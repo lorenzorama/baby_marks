@@ -59,8 +59,8 @@ above or via `frontend/.env.local` — without it every page redirects to `/logi
 | `DATABASE_URL` | backend | — | e.g. `postgresql://baby:baby@localhost:5432/baby_marks`. Required, no default. |
 | `COOKIE_SECURE` | backend | `false` | Set `true` when serving over HTTPS (e.g. behind Traefik on the VPS). If `true` on plain HTTP, the browser silently drops the auth cookie. |
 | `BACKEND_URL` | frontend | `http://backend:8000` | **Build-time** arg (`ARG BACKEND_URL` in `frontend/Dockerfile`) — Next.js serializes the API rewrite into the build, so changing it requires rebuilding the frontend image, not just restarting the container. |
-| `MCP_ACCESS_SECRET` | backend | — | Password entered on the MCP `/authorize` form when connecting claude.ai. Required in production. Rotate to revoke connector access. |
-| `MCP_JWT_SECRET` | backend | — | Signs MCP access/refresh tokens. Required in production. Rotate to revoke connector access. |
+| `MCP_ACCESS_SECRET` | backend | — | Password entered on the MCP `/authorize` form when connecting claude.ai. Required in production. Rotate to block new authorizations (doesn't affect already-issued tokens). |
+| `MCP_JWT_SECRET` | backend | — | Signs MCP access tokens and keys the stored refresh-token hashes. Required in production. Rotate to fully revoke connector access — every issued access token and every stored refresh token stops working. |
 | `MCP_PUBLIC_URL` | backend | — | Externally-reachable origin serving `/mcp`, e.g. `https://baby.yourdomain.com` (no trailing slash). Required in production. |
 | `MCP_DEFAULT_TIMEZONE` | backend | `Europe/Paris` | IANA tz name used when an MCP tool call doesn't specify one. |
 
@@ -136,11 +136,13 @@ Data persists in the `pgdata` Docker volume.
 ## MCP server (claude.ai connector)
 
 The backend also exposes an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so you can ask
-Claude (via claude.ai's custom connectors) to log feedings, check timers, or read stats in natural
-language instead of the app UI. It reads and writes the same Postgres data as the web app — nothing
-is duplicated. The OAuth endpoints backing the connector (RFC 8414/9728/7591) are mounted at the
-backend root alongside `/mcp`: `/.well-known/oauth-authorization-server`,
-`/.well-known/oauth-protected-resource`, `/register`, `/authorize`, `/token`.
+Claude (via claude.ai's custom connectors) to read stats, sleep trends, feedings, and diapers, or
+help you feed the daily journal, in natural language instead of the app UI. **This connector is
+read-only** — it reads the same Postgres data as the web app but never writes to it; logging
+feedings, diapers, sleep, and measurements still happens in the app UI. The OAuth endpoints backing
+the connector (RFC 8414/9728/7591) are mounted at the backend root alongside `/mcp`:
+`/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, `/register`,
+`/authorize`, `/token`.
 
 ### Enable it
 
@@ -166,9 +168,13 @@ backend root alongside `/mcp`: `/.well-known/oauth-authorization-server`,
 
 ### Revoke access
 
-Rotate `MCP_JWT_SECRET` (invalidates every issued token) or `MCP_ACCESS_SECRET` (blocks new
-authorizations) in `.env`, then redeploy. There's no per-client revocation — rotating either secret
-signs out every connected client, so reconnect from claude.ai afterward.
+Rotate `MCP_JWT_SECRET` in `.env`, then redeploy, to fully revoke: every issued access token stops
+verifying immediately, and — since stored refresh-token hashes are keyed with this same secret —
+every stored refresh token becomes unrecoverable too, so an already-connected client can't silently
+mint fresh access tokens either. Rotate `MCP_ACCESS_SECRET` instead to just block *new*
+authorizations (existing connected clients keep working until you also rotate `MCP_JWT_SECRET`).
+There's no per-client revocation — rotating `MCP_JWT_SECRET` signs out every connected client at
+once, so reconnect from claude.ai afterward.
 
 ### Troubleshooting
 

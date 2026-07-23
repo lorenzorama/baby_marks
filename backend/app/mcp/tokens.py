@@ -114,6 +114,16 @@ def new_refresh_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def hash_refresh_token(token: str) -> str:
-    """Sha256 hex digest of a refresh token, for storage as `token_hash`."""
-    return hashlib.sha256(token.encode()).hexdigest()
+def hash_refresh_token(token: str, secret: str) -> str:
+    """HMAC-SHA256 hex digest of a refresh token, keyed by `secret`, for
+    storage as `token_hash`.
+
+    Keyed (not a bare `sha256(token)`) so that rotating the secret genuinely
+    revokes every outstanding refresh token: an unkeyed hash is invariant
+    under secret rotation, so a stored `token_hash` would still match on
+    lookup at `/token` even after the operator rotates the secret to "kick
+    everyone off" -- letting an already-connected client refresh forever.
+    Callers pass `mcp_jwt_secret()` so refresh-chain revocation piggybacks on
+    the same rotation operators already use to invalidate access tokens.
+    """
+    return hmac.new(secret.encode(), token.encode(), hashlib.sha256).hexdigest()
