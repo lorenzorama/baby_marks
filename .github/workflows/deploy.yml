@@ -56,6 +56,7 @@ jobs:
         run: uv sync
       - name: Backend tests
         working-directory: backend
+        shell: bash
         env:
           BM_TEST_DATABASE_URL: postgresql://baby:baby@localhost:5432/baby_marks
         run: |
