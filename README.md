@@ -119,12 +119,44 @@ Open `https://baby.yourdomain.com`, log in with `APP_SECRET_PHRASE`, and use **A
 
 ### 3. Updates
 
+This was the deploy routine before continuous deployment was set up (see below) and remains
+useful as a manual fallback or for the very first deploy:
+
 ```bash
 git pull
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Data persists in the `pgdata` Docker volume.
+
+### Continuous deployment (GitHub Actions)
+
+Every push to `main` runs the full test suite (frontend vitest + typecheck, backend pytest
+including the DB integration tests against a throwaway Postgres 17) and, if green, deploys to
+the VPS over SSH: pre-deploy `pg_dump` backup (kept 30 days in `~/backups`), `git pull`,
+`docker compose up -d --build`, then a health check on `https://baby.canastrat.com`.
+Re-deploy manually anytime from GitHub → Actions → Deploy → **Run workflow**.
+
+One-time setup (already done for this repo — repeat only if rotating the deploy key):
+
+1. Generate a dedicated key (on your machine, no passphrase):
+   `ssh-keygen -t ed25519 -f deploy_key -C github-actions -N ""`
+2. Authorize it on the VPS:
+   `ssh-copy-id -f -i deploy_key.pub root@<VPS_IP>`
+   (or append `deploy_key.pub` to `~/.ssh/authorized_keys` on the VPS)
+3. In GitHub → Settings → Secrets and variables → Actions, create:
+   - `VPS_HOST` = the VPS IP
+   - `VPS_USER` = `root`
+   - `VPS_SSH_KEY` = the full contents of the private `deploy_key` file
+4. Delete the local `deploy_key` / `deploy_key.pub` files.
+
+Manual fallback (if Actions is down or for a hotfix):
+
+    ssh root@<VPS_IP>
+    cd ~/baby-marks/baby_marks
+    git pull && docker compose -f docker-compose.prod.yml up -d --build
+
+Never run `docker compose down -v` on the VPS — it destroys the database volume.
 
 ### Notes
 
