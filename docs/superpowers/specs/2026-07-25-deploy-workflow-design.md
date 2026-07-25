@@ -41,3 +41,12 @@ Registry image builds, staging environment, automated rollback (manual rollback 
 - `test` job green on a real push (incl. integration tests actually running — assert no "skipped" for the DB suite in logs).
 - A push to main results in the VPS running the new commit (check `git log -1` on VPS) and health checks green.
 - Workflow YAML validated locally (actionlint if available, else careful review) before push.
+
+## Amendments (final review)
+
+- Deploy pins the tested commit: the SSH step passes `DEPLOY_SHA=$GITHUB_SHA` to the remote script, which does `git fetch origin && git merge --ff-only "$DEPLOY_SHA"` instead of `git pull --ff-only` — this guarantees the VPS lands on the exact commit that passed the `test` job, not whatever `origin/main` happens to be at deploy time.
+- The VPS host key is pinned in `deploy/known_hosts` (committed) and copied into `~/.ssh/known_hosts` on the runner, with `-o StrictHostKeyChecking=yes` on the ssh invocation, instead of trusting a runtime `ssh-keyscan`.
+- The pre-deploy `pg_dump` reads `$POSTGRES_USER`/`$POSTGRES_DB` from the `db` container's own environment (via `docker compose exec -T db sh -c '...'`) instead of hardcoded `baby`/`baby_marks` credentials.
+- Both jobs (`test`, `deploy`) get `timeout-minutes: 15`; the SSH command additionally sets `ConnectTimeout=10`/`BatchMode=yes`.
+- Hollow-gate guards added: the backend test step fails if pytest output shows the DB suite was skipped (`BM_TEST_DATABASE_URL not set`); the frontend test step runs `npx vitest run` directly (no `--passWithNoTests`, no reliance on `npm run test`'s script definition).
+- `permissions: contents: read` added at the workflow top level (least privilege; checkout is the only thing needed).

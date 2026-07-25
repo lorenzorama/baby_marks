@@ -96,7 +96,7 @@ You need a **Hostinger KVM VPS** (KVM 2 or higher recommended — Next.js builds
 SSH into the VPS, clone the repo, and create `.env`:
 
 ```bash
-git clone <your-repo-url> baby_marks
+mkdir -p ~/baby-marks && cd ~/baby-marks && git clone <your-repo-url> baby_marks
 cd baby_marks
 cp .env.example .env
 ```
@@ -133,11 +133,13 @@ Data persists in the `pgdata` Docker volume.
 
 Every push to `main` runs the full test suite (frontend vitest + typecheck, backend pytest
 including the DB integration tests against a throwaway Postgres 17) and, if green, deploys to
-the VPS over SSH: pre-deploy `pg_dump` backup (kept 30 days in `~/backups`), `git pull`,
-`docker compose up -d --build`, then a health check on `https://baby.canastrat.com`.
-Re-deploy manually anytime from GitHub → Actions → Deploy → **Run workflow**.
+the VPS over SSH: pre-deploy `pg_dump` backup (kept 30 days in `~/backups`), `git fetch` +
+fast-forward merge to the tested commit, `docker compose up -d --build`, then a health check
+on `https://baby.canastrat.com/api/health` and `https://baby.canastrat.com/.well-known/oauth-authorization-server`.
+Re-deploy manually anytime from GitHub → Actions → Deploy → **Run workflow**. Running it manually
+from a branch other than `main` runs the tests only — the deploy job is skipped.
 
-One-time setup (already done for this repo — repeat only if rotating the deploy key):
+One-time setup (repeat only if rotating the deploy key):
 
 1. Generate a dedicated key (on your machine, no passphrase):
    `ssh-keygen -t ed25519 -f deploy_key -C github-actions -N ""`

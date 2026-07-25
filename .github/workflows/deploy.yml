@@ -1,5 +1,8 @@
 name: Deploy
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -12,6 +15,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17-alpine
@@ -40,7 +44,7 @@ jobs:
         run: npm ci
       - name: Frontend tests
         working-directory: frontend
-        run: npm run test
+        run: npx vitest run
       - name: Frontend typecheck
         working-directory: frontend
         run: npx tsc --noEmit
@@ -54,12 +58,15 @@ jobs:
         working-directory: backend
         env:
           BM_TEST_DATABASE_URL: postgresql://baby:baby@localhost:5432/baby_marks
-        run: uv run pytest -ra
+        run: |
+          uv run pytest -ra 2>&1 | tee pytest-output.txt
+          ! grep -q "BM_TEST_DATABASE_URL not set" pytest-output.txt
 
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -72,8 +79,8 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" 'bash -s' < deploy/remote-deploy.sh
+          cp deploy/known_hosts ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "DEPLOY_SHA=$GITHUB_SHA bash -s" < deploy/remote-deploy.sh
 
       - name: Health check
         run: |
