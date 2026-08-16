@@ -1339,12 +1339,11 @@ describe("Signaling", () => {
   it("reconnects with a capped exponential backoff", () => {
     const { signaling, timers, socket } = setup();
     signaling.connect();
-    socket().open();
+    // Each attempt fails before it ever opens, so the delay keeps growing.
     for (const expected of [1000, 2000, 4000, 8000, 15000, 15000]) {
       socket().close();
       expect(timers.at(-1)!.ms).toBe(expected);
       timers.at(-1)!.fn();
-      socket().open();
     }
   });
 
