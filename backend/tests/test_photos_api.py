@@ -1,5 +1,6 @@
 """Photos API against a real Postgres. Skipped unless BM_TEST_DATABASE_URL is set."""
 
+import asyncio
 import os
 
 import pytest
@@ -128,6 +129,68 @@ async def test_retention_keeps_only_the_newest_200(client):
     assert count == 200
     newest = await pool.fetchval("SELECT width FROM photos ORDER BY taken_at DESC LIMIT 1")
     assert newest == 999
+
+
+async def test_rejects_chunked_upload_over_two_mib_with_no_content_length(client):
+    # An async generator makes httpx stream the request body without a known
+    # length, so no Content-Length header is sent (Transfer-Encoding:
+    # chunked instead). This exercises the streaming size guard rather than
+    # the Content-Length fast-path. The payload is well over MAX_BYTES so a
+    # non-streaming implementation (`await request.body()`) would have
+    # buffered the whole thing into memory before ever checking its size.
+    chunk = b"\x00" * (64 * 1024)
+    total_bytes = 6 * 1024 * 1024  # well past the 2 MiB limit
+
+    async def chunks():
+        sent = 0
+        yield sof0(320, 240)  # valid-looking JPEG start, irrelevant once rejected
+        sent += len(sof0(320, 240))
+        while sent < total_bytes:
+            yield chunk
+            sent += len(chunk)
+
+    res = await client.post("/api/photos", content=chunks(), headers=JPEG_HEADERS)
+    assert res.status_code == 413
+    assert res.request.headers.get("content-length") is None
+    assert res.request.headers.get("transfer-encoding") == "chunked"
+
+
+async def test_concurrent_uploads_keep_retention_invariant(client):
+    from app import db as db_module
+
+    pool = await db_module.get_pool()
+    # 200 pre-existing rows, oldest first, mirroring
+    # test_retention_keeps_only_the_newest_200.
+    for i in range(200):
+        await pool.execute(
+            "INSERT INTO photos (taken_at, width, height, bytes) "
+            "VALUES (now() - ($1 || ' seconds')::interval, 10, 10, $2)",
+            str(300 - i),
+            sof0(10, 10),
+        )
+
+    # Genuine concurrency: four separate requests fired together with
+    # asyncio.gather over one AsyncClient/ASGI app, each getting its own
+    # pool connection and transaction. Before the advisory-lock fix, two
+    # overlapping transactions can each compute "delete everything except
+    # the newest 200" from a snapshot that doesn't include the other's
+    # just-inserted row, leaving 201+ rows behind.
+    new_widths = [901, 902, 903, 904]
+    results = await asyncio.gather(
+        *(
+            client.post("/api/photos", content=sof0(w, w), headers=JPEG_HEADERS)
+            for w in new_widths
+        )
+    )
+    assert [r.status_code for r in results] == [201] * 4
+
+    count = await pool.fetchval("SELECT count(*) FROM photos")
+    assert count == 200
+
+    surviving = await pool.fetch(
+        "SELECT width FROM photos WHERE width = ANY($1::int[])", new_widths
+    )
+    assert {r["width"] for r in surviving} == set(new_widths)
 
 
 async def test_all_routes_require_auth(client):
