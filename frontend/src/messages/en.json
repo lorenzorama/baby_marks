@@ -25,6 +25,7 @@
     "enableSound": "Enable sound",
     "fullscreen": "Fullscreen",
     "snapshot": "Photo",
+    "snapshotFailed": "Could not take the photo.",
     "gallery": "Photos",
     "galleryEmpty": "No photos yet",
     "confirmDeletePhoto": "Delete this photo?",

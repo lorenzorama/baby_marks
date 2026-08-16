@@ -12,9 +12,12 @@ type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 export default function ViewerStage({
   stream,
   onSnapshot,
+  busy,
 }: {
   stream: MediaStream;
   onSnapshot?: (video: HTMLVideoElement) => void;
+  /** Disables the snapshot button while a previous capture is still in flight. */
+  busy?: boolean;
 }) {
   const t = useTranslations("camera");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -64,7 +67,8 @@ export default function ViewerStage({
         {onSnapshot && (
           <button
             onClick={() => videoRef.current && onSnapshot(videoRef.current)}
-            className="min-h-[52px] flex-1 rounded-2xl bg-surface-2 px-4 text-base font-semibold text-ink"
+            disabled={busy}
+            className="min-h-[52px] flex-1 rounded-2xl bg-surface-2 px-4 text-base font-semibold text-ink disabled:opacity-50"
           >
             📸 {t("snapshot")}
           </button>

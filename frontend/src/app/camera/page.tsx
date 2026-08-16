@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import CameraStage from "@/components/CameraStage";
 import PhotoGallery from "@/components/PhotoGallery";
+import { toast } from "@/components/Toast";
 import ViewerStage from "@/components/ViewerStage";
 import { useCameraRole } from "@/hooks/useCameraRole";
 import { useUploadPhoto } from "@/hooks/usePhotos";
@@ -66,6 +67,16 @@ export default function CameraPage() {
   const cancelTakeover = () => {
     setBusyName(null);
     role.release();
+  };
+
+  // captureFrame rejects when canvas.toBlob yields null (e.g. a 0x0 canvas,
+  // reachable the instant the stream attaches, before videoWidth/videoHeight
+  // are populated). Surface that with a toast instead of an unhandled
+  // rejection; upload failures are already toasted by useUploadPhoto.
+  const takeSnapshot = (video: HTMLVideoElement) => {
+    void captureFrame(video)
+      .then((blob) => upload.mutate(blob))
+      .catch(() => toast(t("snapshotFailed")));
   };
 
   const isThisDeviceTheCamera = camera !== null && camera.id === peerId;
@@ -139,7 +150,8 @@ export default function CameraPage() {
         ) : viewer.stream ? (
           <ViewerStage
             stream={viewer.stream}
-            onSnapshot={(video) => void captureFrame(video).then((blob) => upload.mutate(blob))}
+            onSnapshot={takeSnapshot}
+            busy={upload.isPending}
           />
         ) : (
           <>
