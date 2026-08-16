@@ -10,7 +10,7 @@ from .errors import ApiError
 from .mcp import oauth as mcp_oauth
 from .mcp.oauth import verify_bearer
 from .mcp.server import mcp as mcp_server
-from .routes import auth, baby, events, measurements, stats
+from .routes import auth, baby, events, measurements, photos, stats
 
 # `http_app(path="/mcp")` gives the returned ASGI app an *internal* route at
 # "/mcp". Mounting it at FastAPI's root ("/") below -- not at "/mcp" -- is
@@ -114,6 +114,7 @@ app.include_router(auth.router)
 app.include_router(baby.router)
 app.include_router(events.router)
 app.include_router(measurements.router)
+app.include_router(photos.router)
 app.include_router(stats.router)
 app.include_router(mcp_oauth.router)
 app.include_router(camera_ws.router)

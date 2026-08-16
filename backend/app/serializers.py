@@ -49,3 +49,12 @@ def measurement_out(row: asyncpg.Record) -> dict[str, Any]:
         "note": row["note"],
         "createdAt": iso(row["created_at"]),
     }
+
+
+def photo_out(row: asyncpg.Record) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "takenAt": iso(row["taken_at"]),
+        "width": row["width"],
+        "height": row["height"],
+    }
