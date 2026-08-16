@@ -45,3 +45,10 @@ export type CreateEventInput = {
   note?: string | null;
   caregiver: Caregiver;
 };
+
+export type Photo = {
+  id: number;
+  takenAt: string;
+  width: number;
+  height: number;
+};

@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import CameraStage from "@/components/CameraStage";
+import PhotoGallery from "@/components/PhotoGallery";
 import ViewerStage from "@/components/ViewerStage";
 import { useCameraRole } from "@/hooks/useCameraRole";
+import { useUploadPhoto } from "@/hooks/usePhotos";
 import { useSignaling } from "@/hooks/useSignaling";
 import { useViewerRole } from "@/hooks/useViewerRole";
 import type { CameraInfo, ServerMessage } from "@/lib/rtc/signaling";
+import { captureFrame } from "@/lib/snapshot";
 
 const NAME_KEY = "bm_device_name";
 
@@ -30,6 +33,7 @@ export default function CameraPage() {
   const { send, peerId } = useSignaling(onMessage);
   const role = useCameraRole(send);
   const viewer = useViewerRole(send);
+  const upload = useUploadPhoto();
   const handleRoleMessage = role.handleMessage;
   const handleViewerMessage = viewer.handleMessage;
 
@@ -113,7 +117,10 @@ export default function CameraPage() {
             <p className="text-sm text-ink-soft">{t("noCameraHint")}</p>
           </>
         ) : viewer.stream ? (
-          <ViewerStage stream={viewer.stream} />
+          <ViewerStage
+            stream={viewer.stream}
+            onSnapshot={(video) => void captureFrame(video).then((blob) => upload.mutate(blob))}
+          />
         ) : (
           <>
             <p className="text-base font-semibold text-ink">📹 {camera.name}</p>
@@ -131,6 +138,8 @@ export default function CameraPage() {
           </>
         )}
       </section>
+
+      <PhotoGallery />
     </main>
   );
 }
