@@ -81,7 +81,13 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           cp deploy/known_hosts ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" "DEPLOY_SHA=$GITHUB_SHA bash -s" < deploy/remote-deploy.sh
+          SSH_OPTS="-i $HOME/.ssh/deploy_key -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # Copy the script and run it as a FILE, with stdin closed. Piping it
+          # into `bash -s` let `docker compose exec` inside the script eat the
+          # remaining lines from the same stdin, so the deploy silently stopped
+          # after the backup and still exited 0.
+          scp $SSH_OPTS deploy/remote-deploy.sh "$VPS_USER@$VPS_HOST:/tmp/bm-remote-deploy.sh"
+          ssh $SSH_OPTS "$VPS_USER@$VPS_HOST" "DEPLOY_SHA=$GITHUB_SHA bash /tmp/bm-remote-deploy.sh" < /dev/null
 
       - name: Health check
         run: |
