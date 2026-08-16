@@ -16,6 +16,7 @@ const NAME_KEY = "bm_device_name";
 
 export default function CameraPage() {
   const t = useTranslations("camera");
+  const tSheets = useTranslations("sheets");
   const [camera, setCamera] = useState<CameraInfo | null>(null);
   const [name, setName] = useState("");
   const [busyName, setBusyName] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function CameraPage() {
   );
 
   const { send, peerId } = useSignaling(onMessage);
-  const role = useCameraRole(send);
+  const role = useCameraRole(send, peerId);
   const viewer = useViewerRole(send);
   const upload = useUploadPhoto();
   const handleRoleMessage = role.handleMessage;
@@ -58,6 +59,13 @@ export default function CameraPage() {
     localStorage.setItem(NAME_KEY, chosen);
     setBusyName(null);
     await role.start(chosen, mode);
+  };
+
+  // Declining the takeover: the media and the wake lock were already acquired
+  // when the server answered camera_busy, so give them back.
+  const cancelTakeover = () => {
+    setBusyName(null);
+    role.release();
   };
 
   const isThisDeviceTheCamera = camera !== null && camera.id === peerId;
@@ -96,16 +104,28 @@ export default function CameraPage() {
         >
           {t("useThisDevice")}
         </button>
-        {role.error && <p className="text-sm text-danger">{t("permissionDenied")}</p>}
+        {role.error && (
+          <p className="text-sm text-danger">
+            {role.error === "permissionDenied" ? t("permissionDenied") : t("cameraUnavailable")}
+          </p>
+        )}
         {busyName !== null && (
           <div className="space-y-2 rounded-2xl bg-surface-2 p-3">
             <p className="text-sm text-ink">{t("takeoverPrompt", { name: busyName })}</p>
-            <button
-              onClick={() => void startCamera("takeover")}
-              className="min-h-[44px] w-full rounded-2xl bg-primary px-4 text-sm font-semibold text-white"
-            >
-              {t("takeoverConfirm")}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => void startCamera("takeover")}
+                className="min-h-[44px] flex-1 rounded-2xl bg-primary px-4 text-sm font-semibold text-white"
+              >
+                {t("takeoverConfirm")}
+              </button>
+              <button
+                onClick={cancelTakeover}
+                className="min-h-[44px] flex-1 rounded-2xl bg-surface px-4 text-sm font-semibold text-ink"
+              >
+                {tSheets("cancel")}
+              </button>
+            </div>
           </div>
         )}
       </section>

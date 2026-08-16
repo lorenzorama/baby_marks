@@ -118,6 +118,47 @@ describe("Signaling", () => {
     expect(states.at(-1)).toBe("closed");
   });
 
+  it("ignores a second connect() while a socket is already live", () => {
+    const { signaling, states, socket } = setup();
+    signaling.connect();
+    socket().open();
+    signaling.connect();
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(states).toEqual(["connecting", "open"]);
+  });
+
+  it("ignores a stale socket's close while a live socket is open", () => {
+    const { signaling, states, timers, socket } = setup();
+    signaling.connect();
+    const stale = socket();
+    stale.close(); // the connection drops and a reconnect is scheduled
+    expect(timers).toHaveLength(1);
+    timers.at(-1)!.fn();
+    const live = socket();
+    live.open();
+    expect(live).not.toBe(stale);
+
+    // The dead socket fires close once more (browsers do emit error+close):
+    // it must not clobber the live connection nor schedule another reconnect.
+    stale.onclose?.();
+    expect(timers).toHaveLength(1);
+    expect(signaling.state).toBe("open");
+    expect(states.at(-1)).toBe("open");
+    signaling.send({ type: "watch" });
+    expect(live.sent.map((s) => JSON.parse(s).type)).toEqual(["watch"]);
+  });
+
+  it("caps the offline queue at 64 messages and keeps the newest", () => {
+    const { signaling, socket } = setup();
+    signaling.connect();
+    for (let i = 0; i < 100; i += 1) signaling.send({ type: "signal", to: "cam", data: i });
+    socket().open();
+    const flushed = socket().sent.map((s) => JSON.parse(s).data);
+    expect(flushed).toHaveLength(64);
+    expect(flushed[0]).toBe(36);
+    expect(flushed.at(-1)).toBe(99);
+  });
+
   it("sends a heartbeat ping on demand", () => {
     const { signaling, socket } = setup();
     signaling.connect();

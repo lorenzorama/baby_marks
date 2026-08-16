@@ -40,6 +40,12 @@ export interface SignalingOptions {
 
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 15000];
 
+/** Cap on the offline send queue. Signaling frames are only useful to the peer
+ *  connection that was being negotiated when the socket died, and no peer
+ *  connection survives an outage long enough to fill this queue — so once it is
+ *  full the OLDEST frames are the safe ones to drop. */
+const MAX_QUEUE = 64;
+
 /** Derive the signaling URL from the page origin, unless overridden. */
 export function rtcUrl(origin: string, override?: string): string {
   if (override) return override;
@@ -67,11 +73,17 @@ export class Signaling {
   }
 
   connect() {
+    // Reentrancy guard: a second connect() would orphan the live socket, which
+    // would then fight the new one from its own (late) callbacks.
+    if (this.socket && !this.stopped) return;
     this.stopped = false;
     this.setState("connecting");
     const socket = this.createSocket(this.opts.url);
     this.socket = socket;
+    // Every callback below ignores its event once `socket` is no longer the
+    // current one: a dead socket must never touch the state of a live one.
     socket.onopen = () => {
+      if (this.socket !== socket) return;
       this.attempt = 0;
       this.setState("open");
       const pending = this.queue;
@@ -79,6 +91,7 @@ export class Signaling {
       for (const msg of pending) socket.send(JSON.stringify(msg));
     };
     socket.onmessage = (event) => {
+      if (this.socket !== socket) return;
       let parsed: unknown;
       try {
         parsed = JSON.parse(event.data);
@@ -93,6 +106,7 @@ export class Signaling {
       /* onclose always follows; reconnection is handled there */
     };
     socket.onclose = () => {
+      if (this.socket !== socket) return;
       this.socket = null;
       if (this.stopped) return;
       const delay = BACKOFF_MS[Math.min(this.attempt, BACKOFF_MS.length - 1)];
@@ -107,8 +121,11 @@ export class Signaling {
   send(msg: ClientMessage) {
     if (this.socket && this.state === "open") {
       this.socket.send(JSON.stringify(msg));
-    } else {
-      this.queue.push(msg);
+      return;
+    }
+    this.queue.push(msg);
+    if (this.queue.length > MAX_QUEUE) {
+      this.queue.splice(0, this.queue.length - MAX_QUEUE);
     }
   }
 

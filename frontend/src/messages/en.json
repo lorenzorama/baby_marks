@@ -11,6 +11,7 @@
     "tapToShow": "Tap to show the preview",
     "switchCamera": "Flip camera",
     "permissionDenied": "Camera access denied. Allow it in your browser settings.",
+    "cameraUnavailable": "Camera unavailable on this device.",
     "wakeLockUnsupported": "This device may sleep and cut the stream.",
     "takeoverPrompt": "Another camera is active ({name}). Replace it?",
     "takeoverConfirm": "Replace",

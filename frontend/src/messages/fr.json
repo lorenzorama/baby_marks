@@ -11,6 +11,7 @@
     "tapToShow": "Touchez pour afficher l'aperçu",
     "switchCamera": "Changer de caméra",
     "permissionDenied": "Accès à la caméra refusé. Autorisez-le dans les réglages du navigateur.",
+    "cameraUnavailable": "Caméra indisponible sur cet appareil.",
     "wakeLockUnsupported": "Cet appareil peut se mettre en veille et couper la diffusion.",
     "takeoverPrompt": "Une autre caméra est active ({name}). La remplacer ?",
     "takeoverConfirm": "Remplacer",
