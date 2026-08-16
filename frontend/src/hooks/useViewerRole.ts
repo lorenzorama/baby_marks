@@ -17,11 +17,20 @@ export function useViewerRole(send: Send) {
   const cameraIdRef = useRef<string | null>(null);
 
   const teardown = useCallback(() => {
+    // Tell the hub this peer stopped watching whenever a watch was actually
+    // in flight — takeover (camera_changed), the too-many-viewers/no-camera
+    // errors, and leave() all end a session and must free the viewer slot.
+    // watch() itself calls teardown() first when re-watching (e.g. retry, or
+    // a new camera appearing mid-connect): that "stop" is sent synchronously
+    // before watch() later sends its own "watch" on the same socket, so
+    // ordering is preserved and the hub's `stop` handler is a no-op for a
+    // peer already removed from `_watchers` — the re-watch path stays safe.
+    if (cameraIdRef.current !== null) send({ type: "stop" });
     pcRef.current?.close();
     pcRef.current = null;
     cameraIdRef.current = null;
     setStream(null);
-  }, []);
+  }, [send]);
 
   const watch = useCallback(
     (cameraId: string) => {
@@ -47,10 +56,10 @@ export function useViewerRole(send: Send) {
   );
 
   const leave = useCallback(() => {
-    send({ type: "stop" });
+    // teardown() already sends "stop" when a camera is being watched.
     teardown();
     setStatus("idle");
-  }, [send, teardown]);
+  }, [teardown]);
 
   const handleMessage = useCallback(
     async (msg: ServerMessage) => {
