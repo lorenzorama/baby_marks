@@ -6,6 +6,7 @@ database is needed and these run in every environment.
 
 import os
 
+import anyio
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -14,7 +15,7 @@ os.environ.setdefault("APP_SECRET_PHRASE", "test-secret")
 
 from app.auth import COOKIE_NAME, compute_auth_token  # noqa: E402
 from app.camera import ws as camera_ws  # noqa: E402
-from app.camera.hub import CameraHub  # noqa: E402
+from app.camera.hub import Action, CameraHub  # noqa: E402
 
 
 @pytest.fixture
@@ -111,6 +112,49 @@ def test_non_json_frame_is_rejected_without_closing(client):
         assert ws.receive_json() == {"type": "error", "code": "bad_message"}
         ws.send_json({"type": "ping"})
         assert ws.receive_json() == {"type": "pong"}
+
+
+def test_binary_frame_is_rejected_without_closing(client):
+    with client.websocket_connect("/rtc") as ws:
+        ws.receive_json()
+        ws.send_bytes(b"\x00\x01\x02")
+        assert ws.receive_json() == {"type": "error", "code": "bad_message"}
+        # Connection still usable:
+        ws.send_json({"type": "ping"})
+        assert ws.receive_json() == {"type": "pong"}
+
+
+class _FakeSocket:
+    """Minimal stand-in for a WebSocket, exposing only what `_deliver` uses."""
+
+    def __init__(self, *, fails: bool = False) -> None:
+        self.fails = fails
+        self.received: list[dict] = []
+
+    async def send_json(self, payload: dict) -> None:
+        if self.fails:
+            raise anyio.ClosedResourceError()
+        self.received.append(payload)
+
+
+async def test_deliver_isolates_one_peers_send_failure_from_another(client):
+    dead = _FakeSocket(fails=True)
+    alive = _FakeSocket()
+    camera_ws._sockets["dead"] = dead
+    camera_ws._sockets["alive"] = alive
+    try:
+        # Should not raise, even though `dead`'s send_json blows up with an
+        # anyio error that isn't RuntimeError or WebSocketDisconnect.
+        await camera_ws._deliver(
+            [
+                Action(to="dead", payload={"type": "ping"}),
+                Action(to="alive", payload={"type": "ping"}),
+            ]
+        )
+    finally:
+        camera_ws._sockets.pop("dead", None)
+        camera_ws._sockets.pop("alive", None)
+    assert alive.received == [{"type": "ping"}]
 
 
 def test_camera_disconnect_notifies_remaining_peers(client):

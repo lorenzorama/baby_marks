@@ -26,8 +26,17 @@ async def _deliver(actions: list[Action]) -> None:
             continue
         try:
             await socket.send_json(action.payload)
-        except (RuntimeError, WebSocketDisconnect):
-            # Peer vanished mid-delivery; its own handler cleans up the hub.
+        except Exception:
+            # Broad catch is deliberate and scoped to this one peer's send:
+            # real transports (uvicorn/anyio) raise anyio.ClosedResourceError /
+            # anyio.BrokenResourceError -- not just RuntimeError or
+            # WebSocketDisconnect -- when the peer dropped without a clean
+            # close (e.g. a phone losing wifi). Letting that escape here would
+            # abort delivery to the remaining peers in this batch and would be
+            # attributed to whichever peer's message triggered the broadcast,
+            # not the dead one. The dead peer's own receive loop / `finally`
+            # is what actually evicts it from `_sockets` and the hub, so it's
+            # safe to just swallow the failure and move on.
             continue
 
 
@@ -42,7 +51,19 @@ async def rtc(websocket: WebSocket) -> None:
     try:
         await _deliver(hub.connect(peer_id))
         while True:
-            raw = await websocket.receive_text()
+            frame = await websocket.receive()
+            if frame["type"] == "websocket.disconnect":
+                # Mirrors the WebSocketDisconnect path below: client hung up
+                # cleanly, stop the loop instead of calling receive() again
+                # (Starlette raises RuntimeError if you do).
+                break
+            if "text" not in frame:
+                # Binary (or any other non-text) frame: per spec this is a
+                # malformed message, not a fatal error -- report it and keep
+                # the connection open, same as oversized/non-JSON frames.
+                await _deliver([Action(to=peer_id, payload={"type": "error", "code": "bad_message"})])
+                continue
+            raw = frame["text"]
             if oversized(raw):
                 await _deliver([Action(to=peer_id, payload={"type": "error", "code": "bad_message"})])
                 continue
