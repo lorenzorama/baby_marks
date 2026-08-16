@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from .camera import ws as camera_ws
 from .db import close_pool, run_migrations
 from .errors import ApiError
 from .mcp import oauth as mcp_oauth
@@ -115,6 +116,7 @@ app.include_router(events.router)
 app.include_router(measurements.router)
 app.include_router(stats.router)
 app.include_router(mcp_oauth.router)
+app.include_router(camera_ws.router)
 
 # Mounted last: FastAPI/Starlette tries routes in registration order, so the
 # explicit routes above (/api/*, the OAuth endpoints, /.well-known/*) all

@@ -41,10 +41,10 @@ services:
         condition: service_healthy
     labels:
       - traefik.enable=true
-      # MCP + OAuth endpoints only (see backend/app/mcp/NOTES.md) — root-mounted
-      # by FastAPI, so this must NOT overlap with /api (that stays internal,
-      # proxied only via the frontend's rewrite).
-      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.rule=Host(`${DOMAIN:?set DOMAIN in .env}`) && (PathPrefix(`/mcp`) || PathPrefix(`/.well-known/oauth-authorization-server`) || PathPrefix(`/.well-known/oauth-protected-resource`) || Path(`/register`) || Path(`/authorize`) || Path(`/token`))
+      # MCP + OAuth endpoints, plus camera signaling (see backend/app/mcp/NOTES.md)
+      # — root-mounted by FastAPI, so this must NOT overlap with /api (that
+      # stays internal, proxied only via the frontend's rewrite).
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.rule=Host(`${DOMAIN:?set DOMAIN in .env}`) && (PathPrefix(`/mcp`) || PathPrefix(`/.well-known/oauth-authorization-server`) || PathPrefix(`/.well-known/oauth-protected-resource`) || Path(`/register`) || Path(`/authorize`) || Path(`/token`) || Path(`/rtc`))
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.priority=100 # outrank frontend catch-all Host rule
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.entrypoints=websecure
       - traefik.http.routers.${COMPOSE_PROJECT_NAME}-mcp.tls.certresolver=letsencrypt
