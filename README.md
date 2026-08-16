@@ -133,11 +133,23 @@ Data persists in the `pgdata` Docker volume.
 
 Every push to `main` runs the full test suite (frontend vitest + typecheck, backend pytest
 including the DB integration tests against a throwaway Postgres 17) and, if green, deploys to
-the VPS over SSH: pre-deploy `pg_dump` backup (kept 30 days in `~/backups`), `git fetch` +
+the VPS over SSH: pre-deploy `pg_dump` backup, `git fetch` +
 fast-forward merge to the tested commit, `docker compose up -d --build`, then a health check
 on `https://baby.canastrat.com/api/health` and `https://baby.canastrat.com/.well-known/oauth-authorization-server`.
 Re-deploy manually anytime from GitHub → Actions → Deploy → **Run workflow**. Running it manually
 from a branch other than `main` runs the tests only — the deploy job is skipped.
+
+The backup is written to `~/backups/pre-deploy-<date>.dump` in PostgreSQL's **custom format**
+(`pg_dump -Fc`) — compressed binary, not plain SQL, because snapshot photos are `bytea` and a
+plain dump would hex-encode them at two characters per byte. Only the **10 newest dumps** are
+kept; older ones are deleted before each deploy, so the backup directory cannot fill the disk
+however often you deploy. To restore one:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T db \
+  sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' \
+  < ~/backups/pre-deploy-<date>.dump
+```
 
 One-time setup (repeat only if rotating the deploy key):
 
@@ -235,7 +247,7 @@ your wifi. The server only introduces the two devices, over a websocket at `/rtc
 protected by the same secret phrase as the app; it never sees, relays or records
 the stream. Snapshots are the only thing stored, as rows in Postgres — so they are
 included in the `pg_dump` backup taken before every deploy, and capped at the 200
-most recent.
+most recent (the gallery shows all of them).
 
 Limits, by design:
 
@@ -244,7 +256,9 @@ Limits, by design:
 - Same wifi only. Watching from outside would need a relay (TURN) server, which is
   deliberately not part of this version.
 - Streaming state lives in memory, so a backend restart (every deploy) ends the
-  session: viewers reconnect on their own, the camera is restarted with one tap.
+  session. The filming device re-announces itself as soon as the websocket is
+  back, so it keeps filming without being touched; each watching device has to
+  tap **Regarder** again.
 - One camera at a time. Starting a second one asks to replace the first.
 - Taking over as camera on a new device automatically stops filming on the
   previous one.

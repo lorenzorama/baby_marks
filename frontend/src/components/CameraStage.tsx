@@ -10,11 +10,15 @@ const DIM_AFTER_MS = 10_000;
 export default function CameraStage({
   stream,
   viewerCount,
+  flipping,
   onFlip,
   onStop,
 }: {
   stream: MediaStream;
   viewerCount: number;
+  /** True while a camera switch is in flight; a second tap during that window
+   *  would open a camera track the hook can no longer stop. */
+  flipping: boolean;
   onFlip: () => void;
   onStop: () => void;
 }) {
@@ -59,7 +63,8 @@ export default function CameraStage({
       <div className="flex gap-3">
         <button
           onClick={onFlip}
-          className="min-h-[52px] flex-1 rounded-2xl bg-surface-2 px-4 text-base font-semibold text-ink"
+          disabled={flipping}
+          className="min-h-[52px] flex-1 rounded-2xl bg-surface-2 px-4 text-base font-semibold text-ink disabled:opacity-50"
         >
           {t("switchCamera")}
         </button>

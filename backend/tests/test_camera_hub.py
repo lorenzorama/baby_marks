@@ -81,6 +81,76 @@ def test_viewer_cap_is_enforced():
     assert actions == [Action(to="extra", payload={"type": "error", "code": "too_many_viewers"})]
 
 
+def test_repeated_watch_is_ignored():
+    hub = CameraHub()
+    make_camera(hub)
+    hub.connect("v1")
+    assert hub.handle("v1", {"type": "watch"}, now=300.0) == [
+        Action(to="cam", payload={"type": "viewer_joined", "peerId": "v1"})
+    ]
+    # A second watch must not make the camera open a second peer connection.
+    assert hub.handle("v1", {"type": "watch"}, now=301.0) == []
+    # ...and it must not consume a second slot either: MAX_VIEWERS - 1 more
+    # distinct devices still fit.
+    for i in range(MAX_VIEWERS - 1):
+        hub.connect(f"other{i}")
+        assert (
+            hub.handle(f"other{i}", {"type": "watch"}, now=302.0)[0].payload["type"]
+            == "viewer_joined"
+        )
+    hub.connect("extra")
+    assert hub.handle("extra", {"type": "watch"}, now=303.0) == [
+        Action(to="extra", payload={"type": "error", "code": "too_many_viewers"})
+    ]
+
+
+def test_takeover_drops_the_previous_cameras_watchers():
+    hub = CameraHub()
+    make_camera(hub)
+    for i in range(MAX_VIEWERS):
+        hub.connect(f"v{i}")
+        hub.handle(f"v{i}", {"type": "watch"}, now=300.0)
+    hub.connect("cam2")
+    hub.handle("cam2", {"type": "takeover", "name": "Salon"}, now=400.0)
+    # The old sessions are dead: their slots must be free, so a fresh device
+    # can watch the new camera instead of hitting too_many_viewers.
+    hub.connect("v-new")
+    assert hub.handle("v-new", {"type": "watch"}, now=401.0) == [
+        Action(to="cam2", payload={"type": "viewer_joined", "peerId": "v-new"})
+    ]
+    # ...and so can every one of the old viewers, re-watching the new camera.
+    for i in range(MAX_VIEWERS - 1):
+        assert hub.handle(f"v{i}", {"type": "watch"}, now=402.0) == [
+            Action(to="cam2", payload={"type": "viewer_joined", "peerId": f"v{i}"})
+        ]
+
+
+def test_stop_from_a_dropped_watcher_after_takeover_is_a_no_op():
+    hub = CameraHub()
+    make_camera(hub)
+    hub.connect("v1")
+    hub.handle("v1", {"type": "watch"}, now=300.0)
+    hub.connect("cam2")
+    hub.handle("cam2", {"type": "takeover", "name": "Salon"}, now=400.0)
+    # The old viewer's client still sends a late `stop`; it must not tell the
+    # new camera that a viewer it never knew about left.
+    assert hub.handle("v1", {"type": "stop"}, now=401.0) == []
+
+
+def test_hello_by_the_same_camera_after_a_reconnect_drops_stale_watchers():
+    hub = CameraHub()
+    make_camera(hub)
+    hub.connect("v1")
+    hub.handle("v1", {"type": "watch"}, now=300.0)
+    # Re-announcing (the self-heal after a backend restart) resets the
+    # sessions too: the camera has no peer connections left either.
+    hub.handle("cam", {"type": "hello", "role": "camera", "name": "Chambre"}, now=500.0)
+    assert hub.handle("v1", {"type": "stop"}, now=501.0) == []
+    assert hub.handle("v1", {"type": "watch"}, now=502.0) == [
+        Action(to="cam", payload={"type": "viewer_joined", "peerId": "v1"})
+    ]
+
+
 def test_signal_is_relayed_only_to_its_target():
     hub = CameraHub()
     make_camera(hub)

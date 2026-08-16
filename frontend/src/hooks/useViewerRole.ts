@@ -6,6 +6,11 @@ import type { ClientMessage, ServerMessage } from "@/lib/rtc/signaling";
 
 export type ViewerStatus = "idle" | "connecting" | "live" | "lost";
 
+/** Why a session ended, when the status alone is not actionable enough.
+ *  `too_many_viewers` is not retryable — a slot has to free up first — while a
+ *  dropped peer connection or a vanished camera is. */
+export type ViewerReason = "too_many_viewers" | "no_camera" | null;
+
 type Send = (msg: ClientMessage) => void;
 
 /** Viewer side: one peer connection to the current camera. The camera is the
@@ -13,6 +18,7 @@ type Send = (msg: ClientMessage) => void;
 export function useViewerRole(send: Send) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [status, setStatus] = useState<ViewerStatus>("idle");
+  const [reason, setReason] = useState<ViewerReason>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const cameraIdRef = useRef<string | null>(null);
 
@@ -37,6 +43,7 @@ export function useViewerRole(send: Send) {
       teardown();
       cameraIdRef.current = cameraId;
       setStatus("connecting");
+      setReason(null);
       const pc = createPeer(
         (data) => send({ type: "signal", to: cameraId, data }),
         (incoming) => {
@@ -59,6 +66,7 @@ export function useViewerRole(send: Send) {
     // teardown() already sends "stop" when a camera is being watched.
     teardown();
     setStatus("idle");
+    setReason(null);
   }, [teardown]);
 
   const handleMessage = useCallback(
@@ -77,11 +85,16 @@ export function useViewerRole(send: Send) {
         if (cameraIdRef.current !== null && msg.camera?.id !== cameraIdRef.current) {
           teardown();
           setStatus("idle");
+          setReason(null);
         }
       } else if (msg.type === "error" && cameraIdRef.current !== null) {
         if (msg.code === "too_many_viewers" || msg.code === "no_camera") {
           teardown();
           setStatus("lost");
+          // The status says "no stream"; the reason is what makes the screen
+          // honest — "too many viewers" is not a lost connection and offering
+          // Retry for it only produces the same refusal.
+          setReason(msg.code);
         }
       }
     },
@@ -97,5 +110,5 @@ export function useViewerRole(send: Send) {
     };
   }, []);
 
-  return { watch, leave, handleMessage, stream, status };
+  return { watch, leave, handleMessage, stream, status, reason };
 }

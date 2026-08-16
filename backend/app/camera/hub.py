@@ -58,7 +58,13 @@ class CameraHub:
         self.camera_id = peer_id
         self._camera_name = _clean_name(name)
         self._camera_since = now
-        self._watchers.discard(peer_id)
+        # Every viewer session dies the moment the camera changes: the old
+        # camera's peer connections are gone and the new camera never receives
+        # `viewer_joined` for them, so keeping them in `_watchers` would only
+        # burn viewer slots until each client happens to send `stop` (a frozen
+        # mobile tab never does). Clients already tolerate a `stop` for a peer
+        # no longer in the set, so dropping them all here is safe.
+        self._watchers.clear()
         return self._broadcast({"type": "camera_changed", "camera": self._camera_info()})
 
     def _clear_camera(self) -> list[Action]:
@@ -123,7 +129,13 @@ class CameraHub:
                 return self._error(peer_id, "no_camera")
             if peer_id == self.camera_id:
                 return self._error(peer_id, "bad_message")
-            if peer_id not in self._watchers and len(self._watchers) >= MAX_VIEWERS:
+            if peer_id in self._watchers:
+                # Already watching: re-emitting `viewer_joined` would make the
+                # camera build a second RTCPeerConnection for the same viewer
+                # and orphan the first one, so a client looping `watch` could
+                # pile ICE agents on the filming phone. Nothing to do.
+                return []
+            if len(self._watchers) >= MAX_VIEWERS:
                 return self._error(peer_id, "too_many_viewers")
             self._watchers.add(peer_id)
             return [Action(to=self.camera_id, payload={"type": "viewer_joined", "peerId": peer_id})]

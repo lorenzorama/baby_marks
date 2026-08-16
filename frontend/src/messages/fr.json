@@ -14,6 +14,7 @@
     "cameraUnavailable": "Caméra indisponible sur cet appareil.",
     "wakeLockUnsupported": "Cet appareil peut se mettre en veille et couper la diffusion.",
     "takeoverPrompt": "Une autre caméra est active ({name}). La remplacer ?",
+    "takeoverPromptUnknown": "Une autre caméra est déjà active. La remplacer ?",
     "takeoverConfirm": "Remplacer",
     "noCamera": "Aucune caméra active",
     "noCameraHint": "Lancez la diffusion depuis l'appareil qui doit filmer.",

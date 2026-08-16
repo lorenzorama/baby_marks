@@ -20,17 +20,28 @@ export default function CameraPage() {
   const tSheets = useTranslations("sheets");
   const [camera, setCamera] = useState<CameraInfo | null>(null);
   const [name, setName] = useState("");
-  const [busyName, setBusyName] = useState<string | null>(null);
+  // `null` = no prompt. `{ name: null }` = prompt without a name to show,
+  // which happens when camera_busy arrives before we ever learned who holds
+  // the camera (e.g. racing another device on a fresh connection).
+  const [takeover, setTakeover] = useState<{ name: string | null } | null>(null);
   const rolesRef = useRef<((msg: ServerMessage) => void) | null>(null);
+  // Mirrors `camera` for the message handler. Reading the state variable there
+  // would read whatever was captured when the handler was created, which is
+  // one message behind — camera_busy always follows the welcome/camera_changed
+  // that names the current camera. Written from an event callback, never
+  // during render.
+  const cameraRef = useRef<CameraInfo | null>(null);
 
-  const onMessage = useCallback(
-    (msg: ServerMessage) => {
-      if (msg.type === "welcome" || msg.type === "camera_changed") setCamera(msg.camera);
-      if (msg.type === "error" && msg.code === "camera_busy") setBusyName(camera?.name ?? "");
-      rolesRef.current?.(msg);
-    },
-    [camera],
-  );
+  const onMessage = useCallback((msg: ServerMessage) => {
+    if (msg.type === "welcome" || msg.type === "camera_changed") {
+      cameraRef.current = msg.camera;
+      setCamera(msg.camera);
+    }
+    if (msg.type === "error" && msg.code === "camera_busy") {
+      setTakeover({ name: cameraRef.current?.name ?? null });
+    }
+    rolesRef.current?.(msg);
+  }, []);
 
   const { send, peerId } = useSignaling(onMessage);
   const role = useCameraRole(send, peerId);
@@ -44,8 +55,12 @@ export default function CameraPage() {
   // Both roles see every message and each ignores what is not its business.
   useEffect(() => {
     rolesRef.current = (msg) => {
-      void handleRoleMessage(msg);
-      void handleViewerMessage(msg);
+      // Both handlers can reject on a malformed remote payload (a bad `sdp`
+      // makes setRemoteDescription throw). Swallow it: an unusable signaling
+      // frame is not worth an unhandled rejection, and the connection state
+      // change already drives the UI back to a retryable state.
+      void handleRoleMessage(msg).catch(() => {});
+      void handleViewerMessage(msg).catch(() => {});
     };
   }, [handleRoleMessage, handleViewerMessage]);
 
@@ -58,14 +73,14 @@ export default function CameraPage() {
   const startCamera = async (mode: "hello" | "takeover" = "hello") => {
     const chosen = deviceName();
     localStorage.setItem(NAME_KEY, chosen);
-    setBusyName(null);
+    setTakeover(null);
     await role.start(chosen, mode);
   };
 
   // Declining the takeover: the media and the wake lock were already acquired
   // when the server answered camera_busy, so give them back.
   const cancelTakeover = () => {
-    setBusyName(null);
+    setTakeover(null);
     role.release();
   };
 
@@ -87,6 +102,7 @@ export default function CameraPage() {
         <CameraStage
           stream={role.stream}
           viewerCount={role.viewerCount}
+          flipping={role.flipping}
           onFlip={() => void role.flip()}
           onStop={role.stop}
         />
@@ -120,9 +136,13 @@ export default function CameraPage() {
             {role.error === "permissionDenied" ? t("permissionDenied") : t("cameraUnavailable")}
           </p>
         )}
-        {busyName !== null && (
+        {takeover !== null && (
           <div className="space-y-2 rounded-2xl bg-surface-2 p-3">
-            <p className="text-sm text-ink">{t("takeoverPrompt", { name: busyName })}</p>
+            <p className="text-sm text-ink">
+              {takeover.name
+                ? t("takeoverPrompt", { name: takeover.name })
+                : t("takeoverPromptUnknown")}
+            </p>
             <div className="flex gap-2">
               <button
                 onClick={() => void startCamera("takeover")}
@@ -156,17 +176,26 @@ export default function CameraPage() {
         ) : (
           <>
             <p className="text-base font-semibold text-ink">📹 {camera.name}</p>
-            {viewer.status === "lost" && <p className="text-sm text-danger">{t("lost")}</p>}
-            <button
-              onClick={() => viewer.watch(camera.id)}
-              className="min-h-[52px] w-full rounded-2xl bg-primary px-4 text-base font-semibold text-white"
-            >
-              {viewer.status === "connecting"
-                ? t("connecting")
-                : viewer.status === "lost"
-                  ? t("retry")
-                  : t("watch")}
-            </button>
+            {viewer.status === "lost" && (
+              <p className="text-sm text-danger">
+                {viewer.reason === "too_many_viewers" ? t("tooManyViewers") : t("lost")}
+              </p>
+            )}
+            {/* No Retry when the camera is full: the slot has to be freed by
+                another device first, and tapping again only earns the same
+                refusal. Every other failure is worth retrying. */}
+            {viewer.reason !== "too_many_viewers" && (
+              <button
+                onClick={() => viewer.watch(camera.id)}
+                className="min-h-[52px] w-full rounded-2xl bg-primary px-4 text-base font-semibold text-white"
+              >
+                {viewer.status === "connecting"
+                  ? t("connecting")
+                  : viewer.status === "lost"
+                    ? t("retry")
+                    : t("watch")}
+              </button>
+            )}
           </>
         )}
       </section>

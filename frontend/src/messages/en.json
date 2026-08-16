@@ -14,6 +14,7 @@
     "cameraUnavailable": "Camera unavailable on this device.",
     "wakeLockUnsupported": "This device may sleep and cut the stream.",
     "takeoverPrompt": "Another camera is active ({name}). Replace it?",
+    "takeoverPromptUnknown": "Another camera is already active. Replace it?",
     "takeoverConfirm": "Replace",
     "noCamera": "No active camera",
     "noCameraHint": "Start streaming from the device that should film.",
