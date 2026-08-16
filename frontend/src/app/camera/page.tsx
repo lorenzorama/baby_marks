@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import CameraStage from "@/components/CameraStage";
+import ViewerStage from "@/components/ViewerStage";
 import { useCameraRole } from "@/hooks/useCameraRole";
 import { useSignaling } from "@/hooks/useSignaling";
+import { useViewerRole } from "@/hooks/useViewerRole";
 import type { CameraInfo, ServerMessage } from "@/lib/rtc/signaling";
 
 const NAME_KEY = "bm_device_name";
@@ -14,26 +16,32 @@ export default function CameraPage() {
   const [camera, setCamera] = useState<CameraInfo | null>(null);
   const [name, setName] = useState("");
   const [busyName, setBusyName] = useState<string | null>(null);
-  const cameraRoleRef = useRef<((msg: ServerMessage) => void) | null>(null);
+  const rolesRef = useRef<((msg: ServerMessage) => void) | null>(null);
 
   const onMessage = useCallback(
     (msg: ServerMessage) => {
       if (msg.type === "welcome" || msg.type === "camera_changed") setCamera(msg.camera);
       if (msg.type === "error" && msg.code === "camera_busy") setBusyName(camera?.name ?? "");
-      cameraRoleRef.current?.(msg);
+      rolesRef.current?.(msg);
     },
     [camera],
   );
 
   const { send, peerId } = useSignaling(onMessage);
   const role = useCameraRole(send);
+  const viewer = useViewerRole(send);
   const handleRoleMessage = role.handleMessage;
+  const handleViewerMessage = viewer.handleMessage;
 
   // The ref breaks the cycle onMessage -> role -> send -> onMessage; it is
   // refreshed after commit, long before the socket can deliver anything.
+  // Both roles see every message and each ignores what is not its business.
   useEffect(() => {
-    cameraRoleRef.current = (msg) => void handleRoleMessage(msg);
-  }, [handleRoleMessage]);
+    rolesRef.current = (msg) => {
+      void handleRoleMessage(msg);
+      void handleViewerMessage(msg);
+    };
+  }, [handleRoleMessage, handleViewerMessage]);
 
   const deviceName = () => {
     if (name) return name;
@@ -95,6 +103,32 @@ export default function CameraPage() {
               {t("takeoverConfirm")}
             </button>
           </div>
+        )}
+      </section>
+
+      <section className="space-y-3 rounded-3xl bg-surface p-4 shadow-sm">
+        {camera === null || isThisDeviceTheCamera ? (
+          <>
+            <p className="text-base font-semibold text-ink">{t("noCamera")}</p>
+            <p className="text-sm text-ink-soft">{t("noCameraHint")}</p>
+          </>
+        ) : viewer.stream ? (
+          <ViewerStage stream={viewer.stream} />
+        ) : (
+          <>
+            <p className="text-base font-semibold text-ink">📹 {camera.name}</p>
+            {viewer.status === "lost" && <p className="text-sm text-danger">{t("lost")}</p>}
+            <button
+              onClick={() => viewer.watch(camera.id)}
+              className="min-h-[52px] w-full rounded-2xl bg-primary px-4 text-base font-semibold text-white"
+            >
+              {viewer.status === "connecting"
+                ? t("connecting")
+                : viewer.status === "lost"
+                  ? t("retry")
+                  : t("watch")}
+            </button>
+          </>
         )}
       </section>
     </main>
