@@ -9,6 +9,7 @@ const settings: LayoutSetting[] = ["auto", "mobile", "web"];
 const tabs = [
   { href: "/", key: "home" },
   { href: "/history", key: "history" },
+  { href: "/camera", key: "camera" },
   { href: "/stats", key: "stats" },
   { href: "/settings", key: "settings" },
 ] as const;
