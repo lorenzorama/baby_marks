@@ -217,3 +217,34 @@ once, so reconnect from claude.ai afterward.
 | `/.well-known/...` returns 404 | The Traefik router on the backend service is missing or misconfigured — check the backend `labels` in `docker-compose.prod.yml` and redeploy. |
 | claude.ai keeps looping back to the authorize/401 screen | `MCP_JWT_SECRET` was rotated or doesn't match what issued the token — remove and re-add the connector. |
 | Connector connects but tools or data are missing | Check backend logs: `docker compose -f docker-compose.prod.yml logs backend`. |
+
+## Baby monitor (camera)
+
+The **Caméra** tab turns any logged-in device into a live monitor.
+
+- On the phone that should film: open the tab, name the device (e.g. "Chambre"),
+  tap **Utiliser cet appareil comme caméra**, and grant camera + microphone access.
+  After 10 seconds the screen goes black with a small red dot — tap to bring the
+  preview back.
+- On any other logged-in device: the camera appears with a **Regarder** button.
+  Sound starts muted (browsers forbid autoplay with sound) — tap **Activer le son**.
+  **Photo** freezes the current frame and stores it in the gallery below.
+
+How it works: video and audio go **directly from device to device** (WebRTC) over
+your wifi. The server only introduces the two devices, over a websocket at `/rtc`
+protected by the same secret phrase as the app; it never sees, relays or records
+the stream. Snapshots are the only thing stored, as rows in Postgres — so they are
+included in the `pg_dump` backup taken before every deploy, and capped at the 200
+most recent.
+
+Limits, by design:
+
+- The filming phone must stay **plugged in, app open and screen on**. Locking it or
+  switching apps stops the stream — a browser limitation on iOS and Android.
+- Same wifi only. Watching from outside would need a relay (TURN) server, which is
+  deliberately not part of this version.
+- Streaming state lives in memory, so a backend restart (every deploy) ends the
+  session: viewers reconnect on their own, the camera is restarted with one tap.
+- One camera at a time. Starting a second one asks to replace the first.
+- Taking over as camera on a new device automatically stops filming on the
+  previous one.
