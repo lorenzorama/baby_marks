@@ -43,8 +43,8 @@ export default function CameraPage() {
     rolesRef.current?.(msg);
   }, []);
 
-  const { send, peerId } = useSignaling(onMessage);
-  const role = useCameraRole(send, peerId);
+  const { send, peerId, peerIdRef } = useSignaling(onMessage);
+  const role = useCameraRole(send, peerIdRef);
   const viewer = useViewerRole(send);
   const upload = useUploadPhoto();
   const handleRoleMessage = role.handleMessage;
@@ -181,21 +181,20 @@ export default function CameraPage() {
                 {viewer.reason === "too_many_viewers" ? t("tooManyViewers") : t("lost")}
               </p>
             )}
-            {/* No Retry when the camera is full: the slot has to be freed by
-                another device first, and tapping again only earns the same
-                refusal. Every other failure is worth retrying. */}
-            {viewer.reason !== "too_many_viewers" && (
-              <button
-                onClick={() => viewer.watch(camera.id)}
-                className="min-h-[52px] w-full rounded-2xl bg-primary px-4 text-base font-semibold text-white"
-              >
-                {viewer.status === "connecting"
-                  ? t("connecting")
-                  : viewer.status === "lost"
-                    ? t("retry")
-                    : t("watch")}
-              </button>
-            )}
+            {/* Retry is offered even for "too many viewers": another viewer
+                may leave and free a slot at any time, and this device gets
+                no notification when that happens, so a manual retry is the
+                only way back in short of reloading the page. */}
+            <button
+              onClick={() => viewer.watch(camera.id)}
+              className="min-h-[52px] w-full rounded-2xl bg-primary px-4 text-base font-semibold text-white"
+            >
+              {viewer.status === "connecting"
+                ? t("connecting")
+                : viewer.status === "lost"
+                  ? t("retry")
+                  : t("watch")}
+            </button>
           </>
         )}
       </section>

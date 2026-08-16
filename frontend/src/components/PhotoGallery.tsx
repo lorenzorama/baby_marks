@@ -22,6 +22,8 @@ export default function PhotoGallery() {
               <img
                 src={`/api/photos/${photo.id}`}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="aspect-square w-full rounded-2xl object-cover"
               />
               <button

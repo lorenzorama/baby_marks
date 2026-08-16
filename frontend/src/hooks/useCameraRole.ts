@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { createPeer, applySignal, offerTo } from "@/lib/rtc/peer";
 import type { ClientMessage, ServerMessage } from "@/lib/rtc/signaling";
 
@@ -20,9 +20,14 @@ function mediaErrorCode(err: unknown): string {
 
 /** Camera side: owns the media stream, the wake lock, and one peer
  *  connection per viewer (the camera is always the offerer).
- *  `peerId` is this device's own signaling id, used to tell "the camera
- *  changed to someone else" from "the camera changed to me". */
-export function useCameraRole(send: Send, peerId: string | null) {
+ *  `peerIdRef` is this device's own signaling id, used to tell "the camera
+ *  changed to someone else" from "the camera changed to me". It is a ref
+ *  (mirroring useSignaling's `peerId` state) rather than the state value
+ *  itself: on reconnect, `welcome` sets a new id and the re-`hello` for this
+ *  camera goes out in the same turn, before React commits the state update.
+ *  A `camera_changed` comparing against stale state would then mismatch its
+ *  own id and call release(), undoing the very self-heal it just did. */
+export function useCameraRole(send: Send, peerIdRef: RefObject<string | null>) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +187,7 @@ export function useCameraRole(send: Send, peerId: string | null) {
         // device is no longer filming for anyone. Release locally only — the
         // server has already moved on, and a late `stop` would clear the new
         // camera instead of this one.
-        if (msg.camera?.id !== peerId) release();
+        if (msg.camera?.id !== peerIdRef.current) release();
         return;
       }
       if (msg.type === "viewer_joined") {
@@ -212,7 +217,7 @@ export function useCameraRole(send: Send, peerId: string | null) {
         }
       }
     },
-    [peerId, release, send],
+    [peerIdRef, release, send],
   );
 
   // Re-acquire the wake lock when the app comes back to the foreground.
@@ -232,6 +237,13 @@ export function useCameraRole(send: Send, peerId: string | null) {
       for (const pc of peers.values()) pc.close();
       peers.clear();
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      // Null both refs, not just stop the tracks: a flip() in flight reads
+      // streamRef.current to detect supersession (see its comments above). If
+      // this stays non-null, an unmount mid-flip is indistinguishable from
+      // "nothing happened", so the flip finishes, publishes a fresh live
+      // video track, and nothing ever stops it — the camera stays on.
+      streamRef.current = null;
+      streamingNameRef.current = null;
       releaseWakeLock();
     };
   }, [releaseWakeLock]);
