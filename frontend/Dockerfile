@@ -15,6 +15,10 @@ RUN npm run build
 FROM node:22-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
+# The standalone server binds to $HOSTNAME, which Docker sets to the container id. That resolves
+# to one network only, so Traefik on traefik-proxy got "connection refused" (502) whenever the
+# id resolved to the default network. Listen on every interface instead.
+ENV HOSTNAME=0.0.0.0
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
